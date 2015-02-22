@@ -15,7 +15,6 @@
 //     - Rotating ASCII
 //     - Colourshifting &nbsp; (small colorbox that changes color with progress)
 //  - backdraft.php - back-end ajax script that does the db interaction.
-//  - One js object per drafted input field. Ditto for php objects.
 //  - Multilanguage support, da-draft.js for danske tekster.
 //  - "Saved" and "Not saved" indicators in green and red
 //     - Like Google Docs, "All changes saved to drive"
@@ -23,9 +22,6 @@
 //
 // Release functionality missing/incomplete
 // ----------------------------------------
-//  - Simple timed autosave
-//     - OK: <select>
-//     - Triggerfunction onchange for select
 //  - Only INSERT new row every N minutes
 //     - "Generation life"
 //     - Constant in code initially, later an object property/setting?
@@ -89,7 +85,7 @@ var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
 // Private methods
 
 Drafty.prototype.ajax_url = function(what) {
-   var rval = 'ajax/backdraft.ajax.php';        //todo URL should not be hardcoded
+   var rval = 'ajax/backdraft-gc.ajax.php';        //todo URL should not be hardcoded
    if (this.DEV_MODE && what)
       rval += '?' + what;
    return rval;
@@ -104,7 +100,7 @@ Drafty.prototype.errormsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
-   this.usermsg('Fejl! '+msg);   //NLS
+   this.usermsg('Draft problem: '+msg);   //NLS
 
 } // Drafty.errormsg()
 
@@ -317,13 +313,13 @@ Drafty.prototype.autosave_init = function() {
    }
    
    if (this.autosave_secs > 0) {
-      this.logmsg('Autosaving every '+this.autosave_secs+' secondds');
+      this.logmsg('Autosaving every '+this.autosave_secs+' seconds');
       var that = this;     //to make 'this' accessible from the inline function
       this.timer = window.setInterval(function() {
          that.save_draft(true);
       }, this.autosave_secs*1000);
    } else
-      this.logmsg('Autosaving NOT enabled');
+      this.logmsg('Autosaving disabled');
 
 } //autosave_init 
 
@@ -368,11 +364,6 @@ Drafty.prototype.autosave_setup = function(interval_secs) {
 
 todo
 ----
- - Knap "Gem kladde" (manuel save, ikke auto-)
- - Knap "Slet udkast"
- - Pulldown? 1min/3min/5m/10m/aldrig automatisk(default)
-    - Hvis den er default fra, så føler folk det nok mere som en mulighed,
-      end som noget der bliver påtvunget dem.
  - Autosave bliver ikke enabled efter ajax paging i kpager
  - Check for forsvundet kladde i db ved onfocus
     - Hvis bruger har slettet eller postet fra en anden browser
@@ -388,11 +379,6 @@ var params = [
    browser_save: true,
    server_save: true,
 ];
-
-var draft = new drafty_field('kommentar_body', 'drafty_msgs');
-if (draft.exists())
-   popup, restore draft?
-draft.autosave_secs(60);
 
 */
 
