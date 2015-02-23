@@ -8,6 +8,8 @@
 // TODO
 // ----
 //  - Test æ, ø, å support, save'n'restore
+//  - Test ", ' and \n for save & restore
+//  - Support UTF-8
 //  - Test with other browsers and platforms
 //
 //
@@ -20,8 +22,8 @@
 //
 // Return values in JSON
 // ---------------------
-// html     New button or whatever
-// message  Error message if set
+// html  Set for ops that returns HTML
+// msg   Error message if set
 //
 //
 // ----------------------------------------------------------------------------
@@ -36,7 +38,10 @@ if (empty($_POST['op']))    // require _POST when in prod to make hacking a bit 
    die("This seems not to be legit interfacing");
 
 
-define('DRAFT_GEN_INTERVAL_SECS', 1*2);
+// Newest draft generation in DB must be this number of seconds old
+// before creating a new one (INSERT) instead of UPDATE'ing latest draft.
+define('DRAFT_GEN_INTERVAL_SECS', 1*60);
+
 define('DRAFT_GEN_KEEP', 100);
 
 
@@ -49,9 +54,9 @@ switch ($_REQUEST['op']) {
    case 'genlist':
       genlist_POST();
       break;
-   case 'gotany':
-      count_drafts_POST();
-      break;
+// case 'gotany':
+//    count_drafts_POST();
+//    break;
    case 'load':
       load_draft_POST();
       break;
@@ -66,42 +71,10 @@ exit(0);
 
 
 // ----------------------------------------------------------------------------
-// POST inputs:
-//   ident => drafts.draft_ident
-// Returns 'cnt' with number of existing draft generations.
-// 'maxgen' are only set if any draft(s) are found.
-
-// todo just return maxgen? also return timestamp for latest draft?
-/**** unused
-function count_drafts_POST() {
-
-   global $u, $gdb;
-   $uid = $u->uid();
-   $ident = myres($_REQUEST['ident']);
-
-   $sql = sprintf('SELECT COUNT(*) AS cnt FROM drafts WHERE userid=%d AND draft_ident="%s"',
-                    $uid, $ident);
-   if ( $result['cnt'] = $gdb->trys($sql)) {
-      $row = $gdb->qself('SELECT MAX(generation) AS maxgen 
-                            FROM drafts
-                           WHERE userid=%d AND draft_ident="%s"',
-                         $uid, $ident);
-      $result['maxgen'] = $row['maxgen'];
-   } else
-      $result['cnt'] = 0;   //no existing drafts
-
-   echo json_encode( $result );
-
-} //count
-**************/
-
-// ----------------------------------------------------------------------------
 
 // POST inputs:
 //   ident => drafts.draft_ident
 //   data => text to save
-
-//todo test med danske bogstaver!
 
 // Save draft text to db, creating a new generation of the draft if the
 // previous save was created more than DRAFT_GEN_INTERVAL_SECS ago.
@@ -110,6 +83,7 @@ function save_draft_POST() {
    global $u, $gdb;
    $userid = $u->uid();
    $draft_ident = $_REQUEST['ident'];
+   $data = utf8_decode($_REQUEST['data']);
 
    $where = sprintf('
        WHERE userid=%d 
@@ -117,25 +91,25 @@ function save_draft_POST() {
       ', $userid, myres($draft_ident));
 
    // Does draft exist already?
-   $row = $gdb->trys('SELECT MAX(generation) AS generation FROM drafts '.$where);
-/*****
-   if ($row['draftid']) {
+   $row = $gdb->trys('SELECT draftid,
+                             generation,
+                             UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(create_time) AS age_in_secs
+                        FROM drafts '.$where.'
+                       ORDER BY generation DESC LIMIT 1');
+
+   if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
       $gdb->e_update('drafts', 'WHERE draftid='.$row['draftid'], array(
-                     '!draft_data' => $data['draft_data']));
+                     '!draft_data' => $data));
    } else {
-*****/
       // Create new draft
       $insrow = array(
                      'userid'       => $userid,
-                     '+draft_ident' => myres($draft_ident), 
+                     '!draft_ident' => $draft_ident, 
                      'create_time'  => 'CURRENT_TIMESTAMP()',
                      'save_time'    => 'CURRENT_TIMESTAMP()',
-                     '!draft_data'  => myres(utf8_decode($_REQUEST['data']))
+                     'generation'   => $row['generation'] + 1,
+                     '!draft_data'  => $data
                     );
-      if (isset($row))
-         $insrow['generation'] = $row['generation'] + 1;
-      else
-         logit('info', 'Creating initial draft for '.$where);
       $gdb->e_insert('drafts', $insrow);
       $draftid = $gdb->last_insert_id();
       logit('info', 'Saved draft #'.$draftid.' by '.$u->uname() . ' ['. $insrow['draft_ident'] .']');
@@ -146,6 +120,8 @@ if (false) {
       if ($cnt > DRAFT_GEN_KEEP)
          $gdb->raw_sql('delete from drafts'.$where.' order by generation limit '.($cnt-DRAFT_GEN_KEEP));
 }
+
+   }
 
    $gen = $gdb->qsel('SELECT MAX(generation) FROM drafts WHERE draftid='.$draftid);
    $msg = sprintf('Save successfull gen #%d af id=%d [%s]',
@@ -266,6 +242,36 @@ function killall_POST() {
 
 } // killall_POST()
 
+
+// ----------------------------------------------------------------------------
+// POST inputs:
+//   ident => drafts.draft_ident
+// Returns 'cnt' with number of existing draft generations.
+// 'maxgen' are only set if any draft(s) are found.
+
+// todo just return maxgen? also return timestamp for latest draft?
+/**** unused
+function count_drafts_POST() {
+
+   global $u, $gdb;
+   $uid = $u->uid();
+   $ident = myres($_REQUEST['ident']);
+
+   $sql = sprintf('SELECT COUNT(*) AS cnt FROM drafts WHERE userid=%d AND draft_ident="%s"',
+                    $uid, $ident);
+   if ( $result['cnt'] = $gdb->trys($sql)) {
+      $row = $gdb->qself('SELECT MAX(generation) AS maxgen 
+                            FROM drafts
+                           WHERE userid=%d AND draft_ident="%s"',
+                         $uid, $ident);
+      $result['maxgen'] = $row['maxgen'];
+   } else
+      $result['cnt'] = 0;   //no existing drafts
+
+   echo json_encode( $result );
+
+} //count
+**************/
 
 // ----------------------------------------------------------------------------
 // $Id: backdraft.ajax.php 2092 2015-02-22 18:48:20Z shj $

@@ -1,34 +1,51 @@
 // ----------------------------------------------------------------------------
 //
-// drafty.js
+// drafty.js - https://github.com/mlgoth/Drafty.js/wiki
 // Draft and autosave support for HTML input fields.
 // jQuery required.
-// 02-Dec-2013/shj
+// Copyright (C) Stig H. Jacobsen 2013-2015
 //
 //
 // Before-prod TODO
 // ----------------
-//  - Auto-restore draft when it exists
-//     - Notify or ask user - user inline function for this?
+//  - All HTML id's should be named "drafty-XXX"
 //  - Type of "saving now" notification:
 //     - Cursor-change, <div> with text, silent, colour change on html elem
 //     - Rotating ASCII
 //     - Colourshifting &nbsp; (small colorbox that changes color with progress)
-//  - backdraft.php - back-end ajax script that does the db interaction.
-//  - Multilanguage support, da-draft.js for danske tekster.
 //  - "Saved" and "Not saved" indicators in green and red
 //     - Like Google Docs, "All changes saved to drive"
 //
 //
-// Release functionality missing/incomplete
-// ----------------------------------------
+// GC release functionality missing/incomplete
+// -------------------------------------------
 //  - Only INSERT new row every N minutes
 //     - "Generation life"
 //     - Constant in code initially, later an object property/setting?
 //  - Draft table cleanup
 //
+//
+// Github/Internet release TODO
+// ----------------------------
+//  - Missing:
+//     - Multilanguage support, da-draft.js for danske tekster.
+//     - demo-drafts.php - get rid of GC specific stuff
+//     - backdraft-mysql.ajax.php - generic mysql BE, no GC-stuff
+//     - Demo-site on derkins
+//     - Properly documented on the github wiki
+//     - More great features :-)
+//     - Minified JS version
+//  - Test:
+//     - Integrate with MQT - does it play nicely?
+//     - Support for multiple Drafty objects/input fields on a single page??
+//
+//
 // Future functionality TODO
 // -------------------------
+//  - Warn user when leaving page (and there is unsaved text)
+//  - Autosave timer stop on blur, start on focus
+//       this.input_area = document.getElementById(this.html_id);
+//       this.input_area.onblur = myfunc;
 //  - Smart unobtrusive idle autosaving
 //     - Idle autosave functionality should be separate from this and go on top of
 //       this, with the autosave-code using methods here to do the actual saving?
@@ -45,6 +62,12 @@
 //     - auto cleanout drafts older than this number of days (save_time)
 //  - Mail user when draft hasn't been updated for a week! "Come back, finish
 //    your new content and publish it..."
+//  - "Attic" drafts - access to the drafts that were deleted on last save(s)
+//     - Greyed out in the genlist to show oldness but can still be restored
+//     - Attic-feature enabled on a per-object basis
+//
+//
+//
 //
 // ----------------------------------------------------------------------------
 
@@ -65,7 +88,7 @@ Optional arguments:
 
 var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
 
-   this.DEV_MODE = true;     // a constant, actually
+   this.DEV_MODE = false;     // a constant, actually
 
    this.draft_ident = draft_ident;
    this.html_id = html_id;
@@ -76,7 +99,7 @@ var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
    if (this.DEV_MODE && this.log_pane)
       $('#'+this.log_pane).css('visibility', 'visible');      //unhide if created hidden initially
 
-   this.logmsg('Drafty object created');
+   this.dmsg('Drafty object created');
 
 } // Drafty constructor
 
@@ -92,10 +115,23 @@ Drafty.prototype.ajax_url = function(what) {
 }
 
 
+// Print messages to log pane, if setup to do so
+Drafty.prototype.dmsg = function(msg) {
+   
+   if ( ! this.DEV_MODE || ! this.log_pane )
+      return;
+
+   var id = '#'+this.log_pane;
+   msg = new Date().toTimeString().substr(0, 8) + ' ' + msg + ' (' + this.html_id+ ')';
+   $(id).html( msg + '<br>' + $(id).html() );
+
+} // dmsg()
+
+
 // Notify user of error condition
 Drafty.prototype.errormsg = function(msg) {
 
-   this.logmsg(msg);       //always log
+   this.dmsg(msg);       //always log
 
    if ( ! this.msg_id )    //output user messages at all?
       return;
@@ -111,7 +147,7 @@ Drafty.prototype.errormsg = function(msg) {
 // Show message to user, maybe highlighted
 Drafty.prototype.usermsg = function(msg) {
 
-   this.logmsg(msg);       //always log
+   this.dmsg('uMsg: '+msg);       //always log
 
    if ( ! this.msg_id )    //output user messages at all?
       return;
@@ -122,19 +158,6 @@ Drafty.prototype.usermsg = function(msg) {
       $('#'+this.msg_id).html('');
 
 } // Drafty.usermsg()
-
-
-// Output messages to log pane, if setup to do so
-Drafty.prototype.logmsg = function(msg) {
-   
-   if ( ! this.DEV_MODE || ! this.log_pane )
-      return;
-
-   var id = '#'+this.log_pane;
-   msg = new Date().toTimeString().substr(0, 8) + ' ' + msg + ' (' + this.html_id+ ')';
-   $(id).html($(id).html() + '<br>' + msg);
-
-} // logmsg()
 
 
 //todo test med danske bogstaver!
@@ -150,41 +173,43 @@ Drafty.prototype.save_draft = function (autosaving) {
 
    var currval = $('#' + this.html_id).val();
 
-   if ( ! this.DEV_MODE ) {      //skip sanity checks while developing
+   // Do some sanity checks before saving
       
-      // is there any text apart from WS?
-      if ('' == currval.trim()) {    
-         if (!autosaving)
-            this.usermsg('Du har jo ikke skrevet noget');
-         return;
-      }
+   // is there any text apart from WS?
+   if ('' == currval.trim()) {    
+      if (!autosaving)
+         this.usermsg('Du har jo ikke skrevet noget');
+      return;
+   }
 
-      // has text changed since last save?
-      if (this.last_saved_text == currval) {    
-         if (!autosaving)
-            this.usermsg('Kladde ikke gemt - der er ingen ændringer');
-         return;
-      }
+   // has text changed since last save?
+   if (this.last_saved_text == currval) {    
+      if (!autosaving)
+         this.usermsg('Kladde ikke gemt - der er ingen ændringer');
+      return;
+   }
 
-      // has text changed since last restore?
-      if ((this.last_restored != '') && (currval == this.last_restored)) {
-         if (!autosaving)
-            this.usermsg('Ikke gemt - ingen ændringer siden gendannelse');
-         return;
-      }
-
+   // has text changed since last restore?
+   if ((this.last_restored != '') && (currval == this.last_restored)) {
+      if (!autosaving)
+         this.usermsg('Ikke gemt - ingen ændringer siden gendannelse');
+      return;
    }
 
    if (indicator) $('#drafty-asave-indicator').html('/');
-   this.logmsg('Saving draft');
+   this.dmsg('Saving draft');
 
    var args = { 'op':   'save',
-                'data':   currval,
-                'ident':  this.draft_ident };
+                'data':  currval,
+                'ident': this.draft_ident };
 
    // 'this' is not available in the inline function, so save it in a var that is
    var that = this;
+   console.log('hejj??');
    $.post(this.ajax_url('save'), args, function(jobj,status) {
+
+      console.log('jobj:');
+      console.log(jobj);
 
       if (indicator) $('#drafty-asave-indicator').html('-');
 
@@ -194,10 +219,15 @@ Drafty.prototype.save_draft = function (autosaving) {
          return;
       }
 
-      that.last_saved_text = currval;
-      that.logmsg('ajax:'+jobj.msg);    //msg from ajax script
+      if ( ! jobj || ! jobj.msg ) {    //todo errorcheck does not work
+         that.errormsg('JSON unparseable');
+         return;
+      }
 
-      that.logmsg('Draft #'+jobj.gen+' saved ');
+      that.last_saved_text = currval;
+      that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
+
+      that.dmsg('Draft #'+jobj.gen+' saved ');
 
       if (indicator) $('#drafty-asave-indicator').html('\\');
       that.refresh_genlist();
@@ -223,9 +253,9 @@ Drafty.prototype.restore_draft = function (genno) {
       $('#' + that.html_id).val(jobj.data);
       that.last_restored = jobj.data;
 
-      that.logmsg('ajax:'+jobj.msg);    //msg from ajax script
+      that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
 
-      that.logmsg('Draft #'+genno+' restored ');
+      that.dmsg('Draft #'+genno+' restored ');
 
    }, 'json');
 
@@ -242,7 +272,7 @@ Drafty.prototype.update_genlist = function (html) {
 // Optional callback function is passed latest genno as argument if any drafts exists
 Drafty.prototype.refresh_genlist = function (callback) {
 
-   this.logmsg('refresh_genlist()');
+   this.dmsg('refresh_genlist()');
 
    args = { 'op':'genlist', 'ident':this.draft_ident };
 
@@ -255,10 +285,10 @@ Drafty.prototype.refresh_genlist = function (callback) {
       }
 
       if (jobj.msg)
-         that.logmsg('ajax:'+jobj.msg);    //msg from ajax script
+         that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
 
       that.update_genlist(jobj.html);
-      that.logmsg('draft genlist refreshed, have '+jobj.cnt);
+      that.dmsg('draft genlist refreshed, have '+jobj.cnt);
 
       if (callback && jobj.cnt > 0)
          callback(jobj.max);
@@ -271,7 +301,7 @@ Drafty.prototype.refresh_genlist = function (callback) {
 // Removes all draft generations from db.
 Drafty.prototype.kill_all = function () {
 
-   this.logmsg('Wipe all draft gens');
+   this.dmsg('Wipe all draft gens');
 
    args = { 'op':  'wipe',
             'ident': this.draft_ident };
@@ -288,7 +318,7 @@ Drafty.prototype.kill_all = function () {
       if ('msg' in jobj)
          that.errormsg('AJAX error:'+jobj.msg);    //msg from ajax script
       else
-         that.logmsg('All '+jobj.cnt+' draft generations removed');
+         that.dmsg('All '+jobj.cnt+' draft generations removed');
 
    }, 'json');
 
@@ -309,17 +339,17 @@ Drafty.prototype.autosave_init = function() {
    if (this.timer) {
       window.clearInterval(this.timer);
       this.timer = null;
-      this.logmsg('Autosave timer stopped');
+      this.dmsg('Autosave timer stopped');
    }
    
    if (this.autosave_secs > 0) {
-      this.logmsg('Autosaving every '+this.autosave_secs+' seconds');
+      this.dmsg('Autosaving every '+this.autosave_secs+' seconds');
       var that = this;     //to make 'this' accessible from the inline function
       this.timer = window.setInterval(function() {
          that.save_draft(true);
       }, this.autosave_secs*1000);
    } else
-      this.logmsg('Autosaving disabled');
+      this.dmsg('Autosaving disabled');
 
 } //autosave_init 
 
@@ -384,32 +414,7 @@ var params = [
 
 function autosave_input(html_id, draft_ident) {
 
-   // Object properties
-   this.html_id = html_id;
-   this.draft_ident = draft_ident;
-   this.input_area = document.getElementById(this.html_id);
-   this.last_saved_text = this.input_area.value;      //don't autosave initial value
-   this.timer = null;
-
-   // Object methods
-   this.try_load = try_load;
-   this.save_draft = save_draft;
-   this.dmsg = dmsg;
-   this.setup_timer = setup_timer;
-   this.clear_timer = clear_timer;
-   this.testForChange = testForChange;
-   this.on_focus = on_focus;
-
-   this.dmsg('setup');
-
    // !!! further initialization code at the bottom 
-
-   function dmsg(msg) {
-      msg = this.html_id+': '+msg;
-      //$("#draft_msg").html( msg + '<br>' + $("#draft_msg").html() );
-      $("#draft_msg").html( msg );
-      console.log('asi: '+msg);
-   }
 
    function testForChange(that) {
       if (! that)
@@ -434,92 +439,9 @@ function autosave_input(html_id, draft_ident) {
       }, 8*1000);
    }
 
-   function try_load() {
+// d = new Date();
+// $("#draft_status").html('Udkast #'+jobj.gen+' gemt ' + d.hhmm());
 
-      args = { 'op'  : 'draft_load',
-               'ident' : this.draft_ident,
-               'html'  : this.html_id };
-
-      var that = this;
-      $.post('ajax/misc.php?draft_load', args, function(jobj,status) {
-         if (status != 'success') {
-            log_appl_err("_try_load POST failed: " + status);
-            return;
-         }
-
-         if (! jobj.text || jobj.text=='') {      //does a draft exist?
-            that.dmsg('NO draft');
-            return;
-         }
-
-         $('#'+that.html_id).val(jobj.text);         //restore input field contents
-         that.last_saved_text = jobj.text;    //avoid autosaving identical text
-
-         that.dmsg(jobj.msg);    //msg from ajax script
-         $("#draft_status").html('Kladde for '+that.html_id+' hentet ind');
-
-      }, 'json');
-
-   } // try_load
-
-   // Save draft to database, if it has changed
-   function save_draft() {
-
-      if (this.last_saved_text == this.input_area.value) {
-         this.dmsg('asave refused, identical text');
-         return;
-      }
-
-      this.logmsg('Saving&hellip;!');
-
-      args = { 'op':  'draft_save',
-               'text':  this.input_area.value,
-               'ident': this.draft_ident,
-               'html':  this.html_id };
-
-      var that = this;
-      $.post('ajax/misc.php?draft_save', args, function(jobj,status) {
-
-         if (status != 'success') {
-            console.error('fejl asave() ' + status);
-            log_appl_err("save_draft() POST failed: " + status);
-            return;
-         }
-
-         that.last_saved_text = args['text'];
-         that.dmsg(jobj.msg);    //msg from ajax script
-
-         //todo show gen#
-         d = new Date();
-         $("#draft_status").html('Udkast #'+jobj.gen+' gemt ' + d.hhmm());
-
-         this.update_genlist('draft_vdiv1');
-
-      }, 'json');
-
-   } // save_draft()
-
-
-   function update_genlist(html_id) {
-
-      this.dmsg('upd genlist&hellip;!');
-
-      args = { 'op':     'draft_ulgen',
-               'draft_id': this.draft_ident,
-               'html_id':  this.html_id };
-
-      var that = this;
-      $.post('ajax/misc.php?draft_ulgen', args, function(jobj,status) {
-
-         if (jobj.msg) {
-            that.dmsg('jobj.msg => ' + jobj.msg);    //msg from ajax script
-            $('#'+html_id).html('jobj.msg => ' + jobj.html);
-         } else
-            $('#'+html_id).html(jobj.html);
-
-      }, 'json');
-
-   } // update_genlist()
 
 
    // Object init code
