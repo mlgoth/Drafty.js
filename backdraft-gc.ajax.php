@@ -97,16 +97,17 @@ function save_draft_POST() {
                         FROM drafts '.$where.'
                        ORDER BY generation DESC LIMIT 1');
 
-   if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
+   if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS)
       $gdb->e_update('drafts', 'WHERE draftid='.$row['draftid'], array(
+                     'save_time'   => 'NOW()',
                      '!draft_data' => $data));
-   } else {
-      // Create new draft
+   else {
+      // Create new draft generation as none exists or the newest gen is too old
       $insrow = array(
                      'userid'       => $userid,
                      '!draft_ident' => $draft_ident, 
-                     'create_time'  => 'CURRENT_TIMESTAMP()',
-                     'save_time'    => 'CURRENT_TIMESTAMP()',
+                     'create_time'  => 'NOW()',
+                     'save_time'    => 'NOW()',
                      'generation'   => $row['generation'] + 1,
                      '!draft_data'  => $data
                     );
@@ -167,7 +168,7 @@ function load_draft_POST() {
 
 // POST inputs:
 //   draft_id => drafts.draft_ident
-// Returns 
+// Returns:
 // 'html' vertical <ul> with list of draft generations to be put in a <div> or <td>
 // 'cnt'  Number of existing draft generations for draft_id
 // 'max'  Highest existing generation for id
@@ -183,7 +184,7 @@ function genlist_POST() {
         FROM drafts 
        WHERE userid=%d 
          AND draft_ident="%s"
-       ORDER BY draftid DESC
+       ORDER BY save_time DESC
       ', $userid, myres($draft_ident));
 
    $result['max'] = 0;
@@ -197,10 +198,9 @@ function genlist_POST() {
       while ($row = $q->next_assoc()) {
          if ($row['generation'] > $result['max'])
             $result['max'] = $row['generation'];
-         $html .= sprintf('<a class="drafty-link" href="javascript:restore_genno(%d);">%s</a><br>',
-                          $row['generation'], $row['save_time']);
+         $html .= sprintf('<a class="drafty-link" href="javascript:drafty_restore_genno(%d, \'%s\');">%s</a><br>',
+                          $row['generation'], $draft_ident, $row['save_time']);
       }
-      //$html .= '</ul>';
    }
 
    $result['cnt'] = $q->nrows();
