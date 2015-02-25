@@ -1,109 +1,106 @@
 <?php
-// test-drafts.php, 11-Feb-2015/shj
-/*
+// 
+// demo-drafty.php, 11-Feb-2015/shj
+// 
+// TODO 
+//  - Test with multiple Drafty objects on a single webpage
+//  - Validate HTML
+//     http://validator.w3.org/check?uri=http%3A%2F%2Fhobbes.gyzzz.eu%2F~shj%2Fdrafty%2Fdemo-drafty.php
+// 
+?>
+<!DOCTYPE HTML>
+<html lang="en" style="height:100%">
 
-todo 
- - Test with multiple Drafty objects on a single webpage
- - draft_content.class.php?
+<head>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=ISO-8859-1">
+   <title>Drafty.js demoo</title>
 
-to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
- - stor del markeret tekst, rammer en tast (markeret tekst forsvinder)
-   og får ramt Gem-knappen bagefter - kladderne blev slettet, da der blev trykket Gem
- - Der sker noget andet med teksten (katten sover på keyboardet) og bruger trykker
-   Gem uden at checke teksten efter først.
+   <style type="text/css">
 
-*/
+      /* '#' er id og '.' er class, husk det nu. */
 
-define('FEATURE_STRICT_PHP', true);
+      a.drafty-link:link, a.drafty-link:visited {     /* plain and black on no mouseover */
+         text-decoration:none;
+         color:black;
+      }
 
-require_once 'site.inc.php';
+      #drafty-logpane {
+         /*this makes scrollbar appear as needed*/
+      /* doesn't work :(
+         clear: both;
+         overflow: auto;
+         display: block;
+      */
 
-if (envir::is_cli())
-   die("PHP syntax check is complete\n");
+         overflow-y: auto;
+         border:     1px solid black;
+         height: 20em;
+         clear: both;
+         width:      30em;
 
+         padding:    7px;
+         float:      right;
+         text-align: left;
+         background: DarkSeaGreen;
+         font-size:  11pt;
 
-// '#' er id og '.' er class, husk det nu.
-$CSS = <<<'PAGE_STYLING'
+         visibility: hidden;  /* JS unhides as needed */
+      }
 
-a.drafty-link:link, a.drafty-link:visited {     /* plain and black on no mouseover */
-   text-decoration:none;
-   color:black;
-}
+      #drafty-box {
+         border: 1px solid black;
+         text-align:center;
+         width:12em;
+         background:SkyBlue;
+         font-size:10pt;
+      }
 
-#drafty-logpane {
-   /*this makes scrollbar appear as needed*/
-/* doesn't work :(
-   clear: both;
-   overflow: auto;
-   display: block;
-*/
+      #drafty-genlist {
+         /*todo: when this works, it makes scrollbar appear as needed*/
+         clear: both;
+         overflow: auto;
+         height: 10em;
+         background: DarkSeaGreen;
+      }
 
-   overflow-y: auto;
-   border:     1px solid black;
-   height: 20em;
-   clear: both;
-   width:      30em;
+      #drafty-knobs {
+         padding: 5px;
+      }
 
-   padding:    7px;
-   float:      right;
-   text-align: left;
-   background: DarkSeaGreen;
-   font-size:  11pt;
+      #drafty-as-setting {
+         width: 6.5em;
+      }
 
-   visibility: hidden;  /* JS unhides as needed */
-}
+      #draft_status {
+         font-size:small;
+         background:yellow;
+         padding-left:5em;
+      }
 
-#drafty-box {
-   border: 1px solid black;
-   text-align:center;
-   width:12em;
-   background:SkyBlue;
-   font-size:10pt;
-}
+   </style>
 
-#drafty-genlist {
-   /*todo: when this works, it makes scrollbar appear as needed*/
-   clear: both;
-   overflow: auto;
-   height: 10em;
-   background: DarkSeaGreen;
-}
+   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
 
-#drafty-knobs {
-   padding: 5px;
-}
+   <XXX using jquery .getscript below() but this works too: script src="drafty.js"></script>
 
-#drafty-as-setting {
-   width: 6.5em;
-}
+</head>
 
-#draft_status {
-   font-size:small;
-   background:yellow;
-   padding-left:5em;
-}
+<body><center>
+<?php
 
-PAGE_STYLING;
+error_reporting(E_ALL|E_STRICT);
 
+$myuserid = 42;      // Set this when user logs in
 
-// ------------------------------------------------------------------------
-
-$page = new geekpage('xhtml', "Kladdetester");
-$page->page_css($CSS);
-$page->caching = 'disable';
-$page->start();
-
-jsmisc::src('drafty');
-
-if ($u->anon())
-   die("Du skal være logget ind for at bruge denne side");  //vi gemmer med userid
+if ( ! $myuserid )
+   die("Must be logged in to use this page");  //userid required
 
 
 // --- Main HTML ----------------------------------------------------------
 
-echo <<<'HTML'
+?>
 
-<h2>Test af kladdesystemet</h2>
+<h2>Demonstration of Drafty.js with a PHP/MySQL backend</h2>
 
 <table cellpadding="10" border=0 width="95%" align="center">
 
@@ -121,7 +118,7 @@ echo <<<'HTML'
       <div id="usermsg"></div>
       <br>
       <div>
-         <button>Demoknap 1</button>
+         <button>Button 1</button>
          &nbsp;&nbsp;
          <button >2</button>
       </div>
@@ -160,16 +157,18 @@ echo <<<'HTML'
 
 <br>
 
-HTML;
+<?php
 
 
 // --- JavaScript setup ---------------------------------------------------
 
 // Set JS variable from PHP variable
-//todo isn't there already a global GC var with the gc userid?
-echo jsmisc::outstr('var draft_ident = "test-drafts-u'.$u->uid().'";'),
+echo '
+<script type="text/javascript">
+   var draft_ident = "test-drafts-u'.$myuserid.'";
+</script>';
 
-     <<<'JSCODE'
+?>
 
 <script type="text/javascript">
 
@@ -190,11 +189,12 @@ echo jsmisc::outstr('var draft_ident = "test-drafts-u'.$u->uid().'";'),
       draft1.refresh_genlist();
    }
 
-   $.getScript("js/drafty.js", function(response,status){
+   $.getScript("drafty.js", function(response,status){
 
       // console.log("Script loaded and executed. Status: "+status);
 
       draft1 = new Drafty(draft_ident, 'commenttext', 'usermsg', 'drafty-logpane');  //global var
+      draft1.backend_url = 'backdraft-mysql.ajax.php';
 
       //todo notify user in colours if old drafts are found
       draft1.refresh_genlist(function (max) {
@@ -243,12 +243,13 @@ echo jsmisc::outstr('var draft_ident = "test-drafts-u'.$u->uid().'";'),
 
 </script>
 
-JSCODE;
+</center></body>
+
+<?php
 
 
 // --- All done -----------------------------------------------------------
 
-$page->ends();
 return;
 
 

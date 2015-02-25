@@ -70,6 +70,17 @@
 //     - Greyed out in the genlist to show oldness but can still be restored
 //     - Attic-feature enabled on a per-object basis
 //
+/*
+In english please:
+
+(attic feature)
+
+to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
+ - stor del markeret tekst, rammer en tast (markeret tekst forsvinder)
+   og får ramt Gem-knappen bagefter - kladderne blev slettet, da der blev trykket Gem
+ - Der sker noget andet med teksten (katten sover på keyboardet) og bruger trykker
+   Gem uden at checke teksten efter først.
+*/
 //
 //
 //
@@ -93,6 +104,7 @@ Optional arguments:
 var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
 
    this.DEV_MODE = true;     // a constant, actually
+   this.backend_url = 'backdraft.ajax.php';
 
    this.draft_ident = draft_ident;
    this.html_id = html_id;
@@ -115,7 +127,7 @@ var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
 // Private methods
 
 Drafty.prototype.ajax_url = function(what) {
-   var rval = 'ajax/backdraft-gc.ajax.php';        //todo URL should not be hardcoded
+   var rval = this.backend_url;
    if (this.DEV_MODE && what)
       rval += '?' + what;
    return rval;
