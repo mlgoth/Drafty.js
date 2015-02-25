@@ -9,6 +9,7 @@ github:
 	-git commit *
 	-git push -u origin master
 	git pull git@github.com:mlgoth/Drafty.js.git
+	git push -u origin master
 
 minify:		mini-drafty.js
 
