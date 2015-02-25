@@ -1,21 +1,22 @@
--- drafts table, Nov-2013/shj
+-- Sample MySQL drafts table for Drafty.js
+-- Nov-2013/shj
 
-DROP table IF EXISTS drafts;
+DROP table IF EXISTS drafty_drafts;
 
-CREATE TABLE drafts (
+CREATE TABLE drafty_drafts (
 
    -- Automatic stuff
-   draftid        INT AUTO_INCREMENT PRIMARY KEY COMMENT "Uniquely identifies this draft generation amongst millions",
-   create_time    TIMESTAMP         NOT NULL             COMMENT "The exact insertion time",
-   save_time      TIMESTAMP         NOT NULL             COMMENT "When draft_data was last updated",
+   draftid        INT        AUTO_INCREMENT PRIMARY KEY,
+   create_time    TIMESTAMP  NOT NULL                    COMMENT "Row insertion time",
+   save_time      TIMESTAMP  NOT NULL                    COMMENT "When draft_data was last updated",
 
    -- Identifying stuff
-   draft_ident    VARCHAR(42)       NOT NULL             COMMENT "Unique identifier for draft, possibly the HTML id for input field",
-   generation     INT(6) UNSIGNED   NOT NULL DEFAULT 1   COMMENT "A million minus one should be enough revisions for anyone",
-   userid         INT(11)           NOT NULL             COMMENT "users.userid OWNZ this draft",
+   draft_ident    VARCHAR(42)       NOT NULL             COMMENT "Unique identifier for draft, often the HTML id for input field",
+   generation     INT(6) UNSIGNED   NOT NULL DEFAULT 1   COMMENT "A million minus one should be enough revisions for everyone",
+   userid         INT(11)           DEFAULT 0 NOT NULL   COMMENT "users.userid OWNZ this draft",
 
    -- Data!
-   draft_data     TEXT              NOT NULL             COMMENT "The meat of this table - the actual saved draft text from the HTML input field",
+   draft_data     TEXT              NOT NULL             COMMENT "Saved draft text from the HTML input field",
 
    -- Explicit keys
    UNIQUE KEY (draft_ident, generation, userid),
@@ -26,4 +27,5 @@ CREATE TABLE drafts (
 
 ) DEFAULT CHARSET=latin1;
 
+-- $Id$
 -- vim:aw:

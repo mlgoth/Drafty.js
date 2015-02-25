@@ -5,6 +5,7 @@ COMPRESSOR = java -jar /usr/local/src/yuicompressor-2.4.7/build/yuicompressor-2.
 all:	mini-drafty.js github
 
 github:
+	. sinit.sh			# setup ssh key login to github
 	-git commit *
 	-git push -u origin master
 	git pull git@github.com:mlgoth/Drafty.js.git
