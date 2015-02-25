@@ -1,26 +1,29 @@
--- Drafty.js/table-drafts.sql
--- Sample drafts table for a MySQL database.
+-- drafts table, Nov-2013/shj
 
--- DROP TABLE IF EXISTS drafty_drafts;
+DROP table IF EXISTS drafts;
 
-CREATE TABLE drafty_drafts (
+CREATE TABLE drafts (
 
-   draftid        INT AUTO_INCREMENT PRIMARY KEY,
+   -- Automatic stuff
+   draftid        INT AUTO_INCREMENT PRIMARY KEY COMMENT "Uniquely identifies this draft generation amongst millions",
+   create_time    TIMESTAMP         NOT NULL             COMMENT "The exact insertion time",
+   save_time      TIMESTAMP         NOT NULL             COMMENT "When draft_data was last updated",
 
-   userid         INT(11) NOT NULL COMMENT "Owner of this draft, usually users.userid",
-   draft_ident    VARCHAR(20) NOT NULL COMMENT "Unique ID of this particular draft - pagename, html id, whatever",
-   generation     SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+   -- Identifying stuff
+   draft_ident    VARCHAR(42)       NOT NULL             COMMENT "Unique identifier for draft, possibly the HTML id for input field",
+   generation     INT(6) UNSIGNED   NOT NULL DEFAULT 1   COMMENT "A million minus one should be enough revisions for anyone",
+   userid         INT(11)           NOT NULL             COMMENT "users.userid OWNZ this draft",
 
-   save_time      TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP,
-   create_time    TIMESTAMP NOT NULL, -- only one col can use DEFAULT CURRENT_TIMESTAMP, silly MySQL
+   -- Data!
+   draft_data     TEXT              NOT NULL             COMMENT "The meat of this table - the actual saved draft text from the HTML input field",
 
-   draft_data     TEXT NOT NULL,
-
+   -- Explicit keys
    UNIQUE KEY (draft_ident, generation, userid),
-   KEY (create_time)
+   KEY (create_time),
+   KEY (save_time)
 
-);
+   -- todo KEY generation and userid - or are they automatically keyed by the UNIQUE KEY declaration?
 
+) DEFAULT CHARSET=latin1;
 
--- $Id$
 -- vim:aw:
