@@ -221,7 +221,8 @@ Drafty.prototype.save_draft = function (autosaving) {
 
    // --- Ok to save draft, go ahead ---
 
-   document.body.style.cursor = 'progress';     // hourglass mouse cursor while we work
+   if (this.saving_cb)
+      this.saving_cb(1);      //draft save commences
 
    if (indicator) $('#drafty-asave-indicator').html('/');
    this.dmsg('Saving draft');
@@ -233,7 +234,13 @@ Drafty.prototype.save_draft = function (autosaving) {
    // 'this' is not available in the inline function, so save it in a var that is
    var that = this;
 
+   if (that.saving_cb)
+      that.saving_cb(2);
+
    $.post(this.ajax_url('save'), args, function(jobj,status) {
+
+      if (that.saving_cb)
+         that.saving_cb(3);
 
 //    console.log('jobj:');
 //    console.log(jobj);
@@ -261,8 +268,8 @@ Drafty.prototype.save_draft = function (autosaving) {
       that.refresh_genlist();
       if (indicator) $('#drafty-asave-indicator').html('');
 
-      //todo doesn't work????
-      document.body.style.cursor = 'default';           // mouse cursor back to normal igen
+      if (that.saving_cb)
+         that.saving_cb(0);      //save finished
 
    }, 'json');
 

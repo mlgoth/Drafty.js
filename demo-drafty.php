@@ -196,6 +196,17 @@ echo '
       draft1 = new Drafty(draft_ident, 'commenttext', 'usermsg', 'drafty-logpane');  //global var
       draft1.backend_url = 'backdraft-mysql.ajax.php';
 
+      // Called when Drafty.js is saving a draft
+      draft1.saving_cb = function(stage) {
+         switch (stage) {
+            case 1: // save starts - hourglass mouse cursor while we work
+                    document.body.style.cursor = 'progress';     
+                    break;
+            case 0: document.body.style.cursor = 'default';           // mouse cursor back to normal igen
+                    break;
+         } //switch
+      };
+
       //todo notify user in colours if old drafts are found
       draft1.refresh_genlist(function (max) {
          console.log('Got draft(s) for '+draft1.draft_ident);
