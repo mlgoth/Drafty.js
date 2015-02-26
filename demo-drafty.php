@@ -193,7 +193,7 @@ echo '
 
       // console.log("Script loaded and executed. Status: "+status);
 
-      draft1 = new Drafty(draft_ident, 'commenttext', 'usermsg', 'drafty-logpane');  //global var
+      draft1 = new Drafty(draft_ident, 'commenttext', 'usermsg');  //global var
       draft1.backend_url = 'backdraft-mysql.ajax.php';
 
       // Called when Drafty.js is saving a draft

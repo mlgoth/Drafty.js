@@ -9,18 +9,17 @@
 // Before-prod TODO
 // ----------------
 //  - All HTML id's should be named "drafty-XXX"
-//  - Type of "saving now" notification:
-//     - Cursor-change, <div> with text, silent, colour change on html elem
-//     - Rotating ASCII
-//     - Colourshifting &nbsp; (small colorbox that changes color with progress)
 //  - "Saved" and "Not saved" indicators in green and red
 //     - Like Google Docs, "All changes saved to drive"
+//  - Implement testForChange() from old drafts.js
+//  - Remove all old drafts.js code from bottom of this file
 //
 //
 // GC release functionality missing/incomplete
 // -------------------------------------------
-//  - Auto draft table cleanup
 //  - Nicer genlist, not so many numbers, weekdays, not so wide, '5m', '3d'
+//  - No buttons shown for ordinary staff in genlist?
+//  - Don't use .getscript(), but jsmisc::src to utilize GC minification setup
 //
 //
 // Github/Internet release TODO
@@ -97,27 +96,30 @@ Required arguments:
 
 Optional arguments:
    msg_id   : html id of div for status and debug output
-   log_pane : html id of div for debug output - requires DEV_MODE to be true to work
 
 */
 
-var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
+var Drafty = function(draft_ident, html_id, msg_id) {
 
-   this.DEV_MODE = true;     // a constant, actually
    this.backend_url = 'backdraft.ajax.php';
 
    this.draft_ident = draft_ident;
    this.html_id = html_id;
    this.last_restored = '';
    this.msg_id = msg_id ? msg_id : null;
-   this.log_pane = log_pane ? log_pane : null;
+
+   // Default messages shown to end user - these can be overriden in usercode to talk a different language
+   this.umsgs = { 
+                  'no_text':  'No text have been input - nothing to save',
+                  'no_chg1':  'Draft not saved - there are no changes',
+                  'no_chg2':  'Draft not saved - no changes since last restore',
+                  'ajax_err': 'Drafty AJAX problem'
+                };
 
    //todo what if the <div> isn't in the html?
    $('#drafty-box').css('visibility', 'visible');      //unhide if created hidden initially
 
-   if (this.DEV_MODE && this.log_pane)
-      $('#'+this.log_pane).css('visibility', 'visible');      //unhide if created hidden initially
-
+   this.setup_devmode(false);
    this.dmsg('Drafty object created');
 
 } // Drafty constructor
@@ -125,6 +127,24 @@ var Drafty = function(draft_ident, html_id, msg_id, log_pane) {
 
 // ----------------------------------------------------------------------------
 // Private methods
+
+
+Drafty.prototype.setup_devmode = function(what) {
+   this.DEV_MODE = what;
+   if (this.DEV_MODE) {
+      if (document.getElementById('drafty-logpane'))
+         this.log_pane = '#drafty-logpane';
+      if (this.log_pane) {
+         $(this.log_pane).css('display', 'block');      //unhide if created hidden initially
+         $(this.log_pane).css('visibility', 'visible');      //unhide if created hidden initially
+      }
+   } else {
+      if (this.log_pane)
+         $(this.log_pane).html('Devmode disabled');
+      this.log_pane = null;
+   }
+
+}
 
 Drafty.prototype.ajax_url = function(what) {
    var rval = this.backend_url;
@@ -140,7 +160,7 @@ Drafty.prototype.dmsg = function(msg) {
    if ( ! this.DEV_MODE || ! this.log_pane )
       return;
 
-   var id = '#'+this.log_pane;
+   var id = this.log_pane;
    msg = new Date().toTimeString().substr(0, 8) + ' ' + msg + ' (' + this.html_id+ ')';
    $(id).html( msg + '<br>' + $(id).html() );
 
@@ -155,7 +175,7 @@ Drafty.prototype.errormsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
-   this.usermsg('Draft problem: '+msg);   //NLS
+   this.usermsg(this.umsgs.ajax_err+': '+msg);   //NLS
 
 } // Drafty.errormsg()
 
@@ -191,9 +211,6 @@ Drafty.prototype.save_draft = function (autosaving) {
 
    this.usermsg();      //clear any old message
 
-   var indicator = document.getElementById('drafty-asave-indicator') ? true : false;
-   if (indicator) $('#drafty-asave-indicator').html('|');
-
    var currval = $('#' + this.html_id).val();
 
    // --- Do some sanity checks before saving ---
@@ -201,21 +218,21 @@ Drafty.prototype.save_draft = function (autosaving) {
    // is there any text apart from WS?
    if ('' == currval.trim()) {    
       if (!autosaving)
-         this.usermsg('Du har jo ikke skrevet noget');
+         this.usermsg(this.umsgs.no_text);
       return;
    }
 
    // has text changed since last save?
    if (this.last_saved == currval) {    
       if (!autosaving)
-         this.usermsg('Kladde ikke gemt - der er ingen ændringer');
+         this.usermsg(this.umsgs.no_chg1);
       return;
    }
 
    // has text changed since last restore?
    if ((this.last_restored != '') && (currval == this.last_restored)) {
       if (!autosaving)
-         this.usermsg('Ikke gemt - ingen ændringer siden gendannelse');
+         this.usermsg(this.umsgs.no_chg2);
       return;
    }
 
@@ -224,7 +241,6 @@ Drafty.prototype.save_draft = function (autosaving) {
    if (this.saving_cb)
       this.saving_cb(1);      //draft save commences
 
-   if (indicator) $('#drafty-asave-indicator').html('/');
    this.dmsg('Saving draft');
 
    var args = { 'op':   'save',
@@ -235,17 +251,15 @@ Drafty.prototype.save_draft = function (autosaving) {
    var that = this;
 
    if (that.saving_cb)
-      that.saving_cb(2);
+      that.saving_cb(2);      //Sending POST now
 
    $.post(this.ajax_url('save'), args, function(jobj,status) {
 
       if (that.saving_cb)
-         that.saving_cb(3);
+         that.saving_cb(3);   // Got response to POST
 
 //    console.log('jobj:');
 //    console.log(jobj);
-
-      if (indicator) $('#drafty-asave-indicator').html('-');
 
       if (status != 'success') {
          that.errormsg('save_draft() ajax failure ' + status);
@@ -260,16 +274,14 @@ Drafty.prototype.save_draft = function (autosaving) {
       //todo show error message, if any
 
       that.last_saved = currval;
-      that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
+      if (jobj.msg)
+         that.usermsg('ajax msg: '+jobj.msg);    //msg from ajax script
 
-      that.dmsg('Draft #'+jobj.gen+' saved ');
-
-      if (indicator) $('#drafty-asave-indicator').html('\\');
       that.refresh_genlist();
-      if (indicator) $('#drafty-asave-indicator').html('');
 
       if (that.saving_cb)
          that.saving_cb(0);      //save finished
+      that.dmsg('Draft #'+jobj.gen+' saved');
 
    }, 'json');
 
@@ -284,6 +296,8 @@ Drafty.prototype.save_draft = function (autosaving) {
 // Returns null for success, else an error message
 // Only tested with <textarea>
 
+// TODO Save draft before restoring? (avoid loosing changes in input field, if any)
+// todo error checking, also for invalid json
 Drafty.prototype.restore_draft = function (genno) {
 
    var args = { 'op':   'load',
@@ -324,6 +338,8 @@ Drafty.prototype.refresh_genlist = function (callback) {
    this.dmsg('Pulling new genlist');
 
    var that = this;  // 'this' is not available in the post cb function
+
+if (0)
    $.post(this.ajax_url('genlist'), {'op':'genlist', 'ident':this.draft_ident} , function(jobj,status) {
 
       if (status != 'success') {
@@ -341,6 +357,39 @@ Drafty.prototype.refresh_genlist = function (callback) {
          callback(jobj.max);
 
    }, 'json');
+
+else
+
+   // This variant catches garbled JSON (error 3)
+   $.post(this.ajax_url('genlist'), {'op':'genlist', 'ident':this.draft_ident} , function(data,status) {
+      if (status != 'success') {
+         that.errormsg('AJAX-1 failed ' + status);
+         return;
+      }
+      if( !data || data === ""){
+         that.errormsg('AJAX-2 failed ' + status);
+         return;
+      }
+      var jobj;
+      try {
+         jobj = jQuery.parseJSON(data);
+      } catch (e) {
+         that.errormsg('AJAX failed(3) - error parsing JSON');
+         return;
+      }
+      
+      // json is ready for use in jobj
+
+      if (jobj.msg)
+         that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
+
+      $('#drafty-genlist').html(jobj.html);
+      that.dmsg('Genlist refreshed, have '+jobj.cnt+' draft generations');
+
+      if (callback && jobj.cnt > 0)
+         callback(jobj.max);
+ 
+   }, "text");
 
 } // refresh_genlist()
 
@@ -380,13 +429,6 @@ Drafty.prototype.kill_all = function () {
 
 }
 
-/***
- * todo?
-// Returns highest draft genno if draft(s) exists, if none exists false is returned.
-Drafty.prototype.got_drafts = function () {
-}
-***/
-
 
 // ----------------------------------------------------------------------------
 //
@@ -423,6 +465,12 @@ Drafty.prototype.autosave_setup = function(interval_secs) {
    this.autosave_init();
 
 } //autosave_setup 
+
+
+Drafty.prototype.toggle_devmode = function() {
+   this.setup_devmode( ! this.DEV_MODE );
+   this.usermsg('Devmode is now '+(this.DEV_MODE?'enabled':'disabled'));
+}
 
 
 // ----------------------------------------------------------------------------
