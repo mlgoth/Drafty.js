@@ -157,9 +157,10 @@ if (false) {
    }
 
    $gen = $db->qsel('SELECT MAX(generation) FROM drafty_drafts WHERE draftid='.$draftid);
-   $msg = sprintf('Save successfull gen #%d af id=%d [%s]',
-                  $gen, $draftid, $draft_ident);
-   $result['msg'] = utf8_encode($msg);
+// $msg = sprintf('Save successfull gen #%d af id=%d [%s]',
+//                $gen, $draftid, $draft_ident);
+   if ($msg)
+      $result['msg'] = utf8_encode($msg);
    $result['gen'] = $gen;
    echo json_encode( $result );
 

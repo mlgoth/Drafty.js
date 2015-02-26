@@ -1,8 +1,11 @@
 <?php
 // 
 // demo-drafty.php, 11-Feb-2015/shj
+// Demonstration page for Drafty.js
+// https://github.com/mlgoth/Drafty.js/wiki
 // 
 // TODO 
+//  - Get rid of the PHP
 //  - Test with multiple Drafty objects on a single webpage
 //  - Validate HTML
 //     http://validator.w3.org/check?uri=http%3A%2F%2Fhobbes.gyzzz.eu%2F~shj%2Fdrafty%2Fdemo-drafty.php
@@ -25,23 +28,19 @@
       }
 
       #drafty-logpane {
-         /*this makes scrollbar appear as needed*/
-      /* doesn't work :(
-         clear: both;
-         overflow: auto;
-         display: block;
-      */
 
+         /*this makes scrollbar appear as needed*/
+         clear: both;
          overflow-y: auto;
+
          border:     1px solid black;
          height: 20em;
-         clear: both;
-         width:      30em;
+         width:      50em;
 
          padding:    7px;
-         float:      right;
+/*       float:      right;*/
          text-align: left;
-         background: DarkSeaGreen;
+         background: SkyBlue;
          font-size:  11pt;
 
          visibility: hidden;  /* JS unhides as needed */
@@ -51,16 +50,16 @@
          border: 1px solid black;
          text-align:center;
          width:12em;
-         background:SkyBlue;
+         background: DarkSeaGreen;
          font-size:10pt;
       }
 
       #drafty-genlist {
-         /*todo: when this works, it makes scrollbar appear as needed*/
+         /* this makes scrollbar appear as needed*/
          clear: both;
          overflow: auto;
          height: 10em;
-         background: DarkSeaGreen;
+      /* background: DarkSeaGreen;*/
       }
 
       #drafty-knobs {
@@ -100,7 +99,7 @@ if ( ! $myuserid )
 
 ?>
 
-<h2>Demonstration of Drafty.js with a PHP/MySQL backend</h2>
+<h2>Demo of Drafty.js with a PHP/MySQL backend</h2>
 
 <table cellpadding="10" border=0 width="95%" align="center">
 
@@ -108,19 +107,23 @@ if ( ! $myuserid )
 
    <td>
 
-   Overskrift:&nbsp;&nbsp;
-   <input type="text" size=60 id="commenthead" name="commenthead" maxlength=100 value="overskriftskladde gemmes ikke">
+   Heading:&nbsp;&nbsp;
+   <input type="text" size=60 id="commenthead" name="commenthead" maxlength=100 value="this input field does not save drafts">
    <br>
    <br>
 
    <div id="textarea-container">
       <textarea id="commenttext" cols="75" rows="7"></textarea>
-      <div id="usermsg"></div>
+      <div id="usermsg">&nbsp;</div>
       <br>
       <div>
-         <button>Button 1</button>
-         &nbsp;&nbsp;
-         <button >2</button>
+         Autosave:
+<select id="autosave-select">
+   <option value="3">Often</option>
+   <option selected="" value="60">Regularly</option>
+   <option value="600">Rarely</option>
+   <option value="0">Don't autosave</option>
+</select>
       </div>
    </div>
    
@@ -128,8 +131,7 @@ if ( ! $myuserid )
 
    <td>
     <div id="drafty-box">
-      <b>Kladder</b>
-      <span id="drafty-asave-indicator">!!</span>
+      <b onclick="draft1.toggle_devmode();"><u>Draft generations</u></b>
       <div id="drafty-genlist"></div>
       <div id="drafty-knobs">
          Autogem:
@@ -149,11 +151,12 @@ if ( ! $myuserid )
      </div>
    </td>
 
-   <td id="drafty-logpane">
-   </td>
-
 </tr>
 </table>
+
+<br>
+
+<div id="drafty-logpane"></div>
 
 <br>
 
@@ -172,11 +175,13 @@ echo '
 
 <script type="text/javascript">
 
-   var draft1;
-   var LS_AUTOSAVE_SETTING = 'drafty-autosave',    //actually a constant
-       DRAFTY_AUTOSAVE_DEFAULT = 60;   //ditto
+   console.log('Script inline JS runs');
 
-   console.log('Script inline JS runneth!');
+   var draft1,
+       website_userid;
+   var LS_AUTOSAVE_SETTING = 'drafty-autosave',    //actually a constant
+       LS_USERID = 'drafty-demo-userid',
+       DRAFTY_AUTOSAVE_DEFAULT = 60;   //ditto
 
    function restore_genno(genno) {
       draft1.restore_draft(genno);
@@ -185,9 +190,18 @@ echo '
    // Removes all draftgens from table
    function kill_drafts() {
       draft1.kill_all();
-      draft1.logmsg('Alle kladder er nu fjernet');
+      draft1.usermsg('All draft generations have been nuked');
       draft1.refresh_genlist();
    }
+
+   function random_int(min,max) {
+      return Math.floor((Math.random() * max) + min);
+   }
+
+   // Create a random userid for the demo as we have no login here
+   if ( ! (LS_USERID in localStorage) )
+      localStorage[ LS_USERID ] = random_int(1,1000*1000);
+   website_userid = localStorage[ LS_USERID ];
 
    $.getScript("drafty.js", function(response,status){
 
@@ -249,7 +263,7 @@ echo '
          draft1.save_draft();
       });
 
-      console.log('Kladdesystemet er klar til aktion');
+      console.log('The drafts subsystem is up');
    });
 
 </script>
