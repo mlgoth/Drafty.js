@@ -85,6 +85,9 @@ to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
 //
 // ----------------------------------------------------------------------------
 
+// Add the basic CSS that we need
+
+$('head').append("/* '#' er id og '.' er class, husk det nu. */");
 
 
 // ----------------------------------------------------------------------------
@@ -128,7 +131,6 @@ var Drafty = function(draft_ident, html_id, msg_id) {
 // ----------------------------------------------------------------------------
 // Private methods
 
-
 Drafty.prototype.setup_devmode = function(what) {
    this.DEV_MODE = what;
    if (this.DEV_MODE) {
@@ -149,12 +151,12 @@ Drafty.prototype.setup_devmode = function(what) {
 Drafty.prototype.ajax_url = function(what) {
    var rval = this.backend_url;
    if (this.DEV_MODE && what)
-      rval += '?' + what;
+      rval += '?' + what;           // Informative URLs makes debugging easier
    return rval;
 }
 
 
-// Print messages to log pane, if setup to do so
+// Print message to log pane, if setup to do so
 Drafty.prototype.dmsg = function(msg) {
    
    if ( ! this.DEV_MODE || ! this.log_pane )
@@ -271,17 +273,17 @@ Drafty.prototype.save_draft = function (autosaving) {
          return;
       }
 
-      //todo show error message, if any
-
-      that.last_saved = currval;
+      //show error message, if any
       if (jobj.msg)
-         that.usermsg('ajax msg: '+jobj.msg);    //msg from ajax script
-
-      that.refresh_genlist();
+         this.usermsg(this.umsgs.ajax_err + ': '+jobj.msg);
+      else {
+         that.refresh_genlist();
+         that.last_saved = currval;
+         that.dmsg('Draft #'+jobj.gen+' saved');
+      }
 
       if (that.saving_cb)
          that.saving_cb(0);      //save finished
-      that.dmsg('Draft #'+jobj.gen+' saved');
 
    }, 'json');
 
