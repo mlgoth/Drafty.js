@@ -268,7 +268,7 @@ Drafty.prototype.save_draft = function (autosaving) {
          return;
       }
 
-      if ( ! jobj || ! jobj.msg ) {    //todo errorcheck does not work
+      if ( ! jobj ) {    //todo errorcheck does not work
          that.errormsg('JSON unparseable');
          return;
       }
