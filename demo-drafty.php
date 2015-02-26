@@ -27,6 +27,12 @@
          color:black;
       }
 
+      a.drafty-link:hover {            /* underline and blue on mouseover */
+         text-decoration:underline;
+         cursor:pointer;
+         color:blue;
+      }
+
       #drafty-logpane {
 
          /*this makes scrollbar appear as needed*/
