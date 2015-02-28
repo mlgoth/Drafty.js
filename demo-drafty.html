@@ -1,0 +1,270 @@
+<!DOCTYPE HTML>
+<html lang="en" style="height:100%">
+
+<!--
+// 
+// demo-drafty.html, 11-Feb-2015/shj
+// Demonstration page for Drafty.js
+// https://github.com/mlgoth/Drafty.js/wiki
+// 
+// TODO 
+// ----
+//  - Test with multiple Drafty objects on a single webpage
+//  - Validate HTML
+//     http://validator.w3.org/check?uri=http%3A%2F%2Fhobbes.gyzzz.eu%2F~shj%2Fdrafty%2Fdemo-drafty.php
+// 
+-->
+
+<head>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=ISO-8859-1">
+   <title>Drafty.js demoo</title>
+
+   <style type="text/css">
+
+      /* '#' er id og '.' er class, husk det nu. */
+
+      a.drafty-link:link, a.drafty-link:visited {     /* plain and black on no mouseover */
+         text-decoration:none;
+         color:black;
+      }
+
+      a.drafty-link:hover {            /* underline and blue on mouseover */
+         text-decoration:underline;
+         cursor:pointer;
+         color:blue;
+      }
+
+      #drafty-logpane {
+
+         /*this makes scrollbar appear as needed*/
+         clear: both;
+         overflow-y: auto;
+
+         border:     1px solid black;
+         height: 20em;
+         width:      50em;
+
+         padding:    7px;
+/*       float:      right;*/
+         text-align: left;
+         color:      white;
+         background: grey;
+         font-size:  11pt;
+
+         visibility: hidden;  /* JS unhides as needed */
+      }
+
+      #drafty-box {
+         border:     1px solid black;
+         text-align: center;
+         width:      18em;
+         background: SkyBlue;
+         font-size:  10pt;
+/*       float: left;*/
+      }
+
+      #drafty-genlist {
+         /* this makes scrollbar appear only when needed */
+         clear:      both;
+         overflow:   auto;
+         height:     10em;
+      }
+
+      #drafty-knobs {
+         padding: 5px;
+      }
+
+      #drafty-as-setting {
+         width: 6.5em;
+      }
+
+      #draft_status {
+         font-size:small;
+         background:yellow;
+         padding-left:5em;
+      }
+
+   </style>
+
+   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+
+   <XXX using jquery .getscript below() but this works too: script src="drafty.js"></script>
+
+</head>
+
+<body><center>
+<br>
+<h2>Demo of Drafty.js with a PHP/MySQL backend</h2>
+<br>
+
+<table border=1 cellpadding="10" border=0 width="95%" align="center">
+
+<tr>
+
+   <td>
+
+   Heading:&nbsp;&nbsp;
+   <input class="drafty-input" type="text" size=60 id="headtext" maxlength=100 value="sample header">
+   <br><br>
+   Test select for draft saving:
+<select id="demo-select" class="drafty-input">
+   <option value="green">Green</option>
+   <option selected="" value="orange">Orange</option>
+   <option value="red">Red</option>
+   <option value="none">Uncoloured</option>
+</select>
+   <br><br>
+   <div id="textarea-container">
+      <textarea id="bodytext" class="drafty-input" cols="75" rows="7">body text</textarea>
+      <br><br>
+
+         Autosave:
+<select id="autosave-select">
+   <option value="3">Often</option>
+   <option selected="" value="60">Regularly</option>
+   <option value="600">Rarely</option>
+   <option value="0">Don't autosave</option>
+</select>
+
+      <button onclick="draft1.toggle_devmode();">Toggle devmode</button>
+
+   </div>
+   
+   </td>
+
+   <td>
+    <div id="drafty-box">
+      <b onclick="draft1.toggle_devmode();"><u>Draft list</u></b>
+      <div id="drafty-genlist"></div>
+      <div id="usermsg">&nbsp;</div>
+      &nbsp;&nbsp;
+      <div id="drafty-knobs">
+         Autosave:
+<select id="drafty-as-setting">
+   <option value="3">Often</option>
+   <option selected="" value="60">Regularly</option>
+   <option value="600">Rarely</option>
+   <option value="0">Don't autosave</option>
+</select>
+<br>
+         <div style="padding-top:5px;">
+            <button id="save_button" onclick="draft1.save_draft();">Save</button>
+            &nbsp;
+            <button id="kill_button" onclick="kill_drafts();">Purge drafts</button>
+         </div>
+      </div>
+     </div>
+   </td>
+
+</tr>
+</table>
+
+<br>
+
+<div id="drafty-logpane"></div>
+
+<br>
+
+<script type="text/javascript">
+
+   var draft1,             // Drafty object for the inputs on this page
+       website_userid;
+
+   // Constants
+   var LS_AUTOSAVE_SETTING = 'drafty-autosave',
+       LS_USERID = 'drafty-demo-userid',
+       DRAFTY_AUTOSAVE_DEFAULT = 60;
+
+   // Not using the ident param as we only have one Drafty object
+   function drafty_restore_genno(genno, draft_ident) {
+      draft1.restore_draft(genno);
+   }
+
+   // Removes all draftgens from table
+   function kill_drafts() {
+      draft1.kill_all();
+      draft1.usermsg('All your draft generations have been removed');
+      draft1.refresh_genlist();
+   }
+
+   function random_int(min,max) {
+      return Math.floor((Math.random() * max) + min);
+   }
+
+   // Create a random userid for the demo as we have no login here
+   if ( ! (LS_USERID in localStorage) )
+      localStorage[ LS_USERID ] = random_int(1,1000*1000);
+   website_userid = localStorage[ LS_USERID ];
+
+   var draft_ident = "test-drafts-u" + website_userid;
+
+   $.getScript("drafty.js", function(response,status){
+
+      draft1 = new Drafty(draft_ident, '.drafty-input', 'usermsg');  //global var
+      draft1.backend_url = 'backdraft-mysql.ajax.php';
+
+      // Called when Drafty.js is saving a draft
+      draft1.saving_cb = function(stage) {
+         switch (stage) {
+            case 1: // save starts - hourglass mouse cursor while we work
+                    document.body.style.cursor = 'progress';     
+                    break;
+            case 0: document.body.style.cursor = 'default';           // mouse cursor back to normal igen
+                    break;
+         } //switch
+      };
+
+      //todo notify user in colours if old drafts are found
+      draft1.refresh_genlist(function (max) {
+         console.log('Got draft(s) for '+draft1.draft_ident);
+         draft1.restore_draft(max);
+         //todo: error-checking, let user know if restore failed
+         draft1.dmsg('Restored latest draft on drafty.j load');
+         var msg = 'Input fields have been restored from the newest draft';
+         if (draft1.DEV_MODE)
+            draft1.usermsg(msg);
+         else
+            alert(msg);    // Horrible, ugly popup
+      });
+
+      // Restore users autosave setting from browser LS
+      //todo move to drafty.js somehow
+      var asave = DRAFTY_AUTOSAVE_DEFAULT;
+      if (LS_AUTOSAVE_SETTING in localStorage)
+         asave = localStorage[ LS_AUTOSAVE_SETTING ];
+
+      draft1.autosave_setup(asave);
+      $("#drafty-knobs select").val(asave);
+
+      // Invoked when user changes autosave interval
+      $('#drafty-as-setting').change(function() { 
+
+         var newval = this.value;
+
+         // Save new user setting to LS
+         if (newval == DRAFTY_AUTOSAVE_DEFAULT)
+            delete localStorage[LS_AUTOSAVE_SETTING];    //don't save the default value, waste of space
+         else
+            localStorage[ LS_AUTOSAVE_SETTING ] = newval;
+
+         // Adjust object autosave timer
+         draft1.autosave_setup(newval);
+      } );
+
+      $('#save_button').click(function(){
+         draft1.save_draft();
+      });
+
+      console.log('The drafts subsystem is up');
+   });
+
+</script>
+
+</center></body>
+
+<!--
+// ------------------------------------------------------------------------
+// $Id: test-drafts.php 2092 2015-02-22 18:48:20Z shj $
+// vim:aw:
+// ------------------------------------------------------------------------
+-->
