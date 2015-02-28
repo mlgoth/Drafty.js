@@ -45,7 +45,6 @@
          width:      50em;
 
          padding:    7px;
-/*       float:      right;*/
          text-align: left;
          color:      white;
          background: grey;
@@ -57,10 +56,9 @@
       #drafty-box {
          border:     1px solid black;
          text-align: center;
-         width:      18em;
+         width:      10em;
          background: SkyBlue;
          font-size:  10pt;
-/*       float: left;*/
       }
 
       #drafty-genlist {
@@ -72,10 +70,6 @@
 
       #drafty-knobs {
          padding: 5px;
-      }
-
-      #drafty-as-setting {
-         width: 6.5em;
       }
 
       #draft_status {
@@ -97,7 +91,7 @@
 <h2>Demo of Drafty.js with a PHP/MySQL backend</h2>
 <br>
 
-<table border=1 cellpadding="10" border=0 width="95%" align="center">
+<table border=0 cellpadding="10" align="center">
 
 <tr>
 
@@ -116,8 +110,9 @@
    <br><br>
    <div id="textarea-container">
       <textarea id="bodytext" class="drafty-input" cols="75" rows="7">body text</textarea>
-      <br><br>
-
+      <br>
+      <div id="usermsg">umsg&nbsp;</div>
+      <br>
          Autosave:
 <select id="autosave-select">
    <option value="3">Often</option>
@@ -125,7 +120,7 @@
    <option value="600">Rarely</option>
    <option value="0">Don't autosave</option>
 </select>
-
+      &nbsp;&nbsp;
       <button onclick="draft1.toggle_devmode();">Toggle devmode</button>
 
    </div>
@@ -136,17 +131,8 @@
     <div id="drafty-box">
       <b onclick="draft1.toggle_devmode();"><u>Draft list</u></b>
       <div id="drafty-genlist"></div>
-      <div id="usermsg">&nbsp;</div>
       &nbsp;&nbsp;
       <div id="drafty-knobs">
-         Autosave:
-<select id="drafty-as-setting">
-   <option value="3">Often</option>
-   <option selected="" value="60">Regularly</option>
-   <option value="600">Rarely</option>
-   <option value="0">Don't autosave</option>
-</select>
-<br>
          <div style="padding-top:5px;">
             <button id="save_button" onclick="draft1.save_draft();">Save</button>
             &nbsp;
@@ -237,7 +223,7 @@
       $("#drafty-knobs select").val(asave);
 
       // Invoked when user changes autosave interval
-      $('#drafty-as-setting').change(function() { 
+      $('#autosave-select').change(function() { 
 
          var newval = this.value;
 

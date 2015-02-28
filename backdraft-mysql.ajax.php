@@ -33,36 +33,45 @@ error_reporting(E_ALL|E_STRICT);
 
 // --- Script setup -----------------------------------------------------------
 
-global $db;
+global $db, $tablename;
 
-$db = mysqli_connect('localhost', 'shj', 'Latte', 'shj');
+$tablename = 'drafty_drafts';                       //name of table in mysql db
+
+$db = mysqli_connect('localhost', 'shj', 'Latte', 'shj');     // EDIT*EDIT*EDIT
 if (!$db)
-   die('Error #' . mysqli_errno() . ' connecting to Mysql-server: ' . mysqli_error());
+   die('Error connecting to Mysql-server');
 
 // Newest draft generation in DB must be this number of seconds old
 // before creating a new one (INSERT) instead of UPDATE'ing latest draft.
 define('DRAFT_GEN_INTERVAL_SECS', 1*60);
 
-define('DRAFT_GEN_KEEP', 100);
-
 // Set to true to clean out old/many drafts when inserting new drafts in the table
 define('DRAFT_AUTO_CLEANUP', false);
 
-// Set this when user logs in to the web app/site or just set it to 0 and ignore userids
+// Draft generations to keep per draft_ident/userid when cleaning up
+define('DRAFT_GEN_KEEP', 100);
+
+// Set this when user logs in to the web app/site
+// Or just set it to 0 to ignore userids
 $myuserid = 42;
 
 
 // --- Is this running from a webserver? --------------------------------------
 
 if (empty($_POST['op'])) {   // require _POST when in prod to make hacking a bit more bothersome
-   if (false)
-      die("This seems not to be legit interfacing");
    
    // Run simple test when script is invoked from the shell
    $_REQUEST['ident'] = 'Unit test!';     // Common to all the _json funcs
 
    echo "*** SAVE ***\n";
    $_REQUEST['data'] = "Sample draft data";
+   save_draft_json($myuserid);
+   $_REQUEST['data'] = "v2 data";
+   save_draft_json($myuserid);
+   echo "\n... sleeping for ", DRAFT_GEN_INTERVAL_SECS, " seconds ...";
+   sleep(DRAFT_GEN_INTERVAL_SECS);
+   echo "\n";
+   $_REQUEST['data'] = "Third draft save should create a new generation";
    save_draft_json($myuserid);
 
    echo "\n\n*** GENLIST ***\n";
@@ -164,7 +173,7 @@ function myres($string) {
 // previous save was created more than DRAFT_GEN_INTERVAL_SECS ago.
 function save_draft_json($userid) {
 
-   global $db;
+   global $db, $tablename;
    $draft_ident = $_REQUEST['ident'];
    $data = utf8_decode($_REQUEST['data']);
 
@@ -177,14 +186,14 @@ function save_draft_json($userid) {
    $row = trys('SELECT draftid,
                              generation,
                              UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(create_time) AS age_in_secs
-                        FROM drafty_drafts '.$where.'
+                        FROM '.$tablename.' '.$where.'
                        ORDER BY generation DESC LIMIT 1');
 
 //var_dump($row);
 
    if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
       $draftid = $row['draftid'];
-      $sql = sprintf('UPDATE drafty_drafts
+      $sql = sprintf('UPDATE '.$tablename.'
                          SET save_time = NOW(),
                              draft_data = "%s"
                        WHERE draftid="%s"',
@@ -193,7 +202,7 @@ function save_draft_json($userid) {
          die("Mysql update error: $sql");
    } else {
       // Create new draft generation as none exists or the newest gen is too old
-      $sql = sprintf('INSERT INTO drafty_drafts
+      $sql = sprintf('INSERT INTO '.$tablename.'
                         (userid, draft_ident, create_time, save_time, generation, draft_data)
                         VALUES (%d, "%s", NOW(), NOW(), %d, "%s")',
                      $userid, myres($draft_ident), $row['generation'] + 1, myres($data));
@@ -204,19 +213,19 @@ function save_draft_json($userid) {
    if (DRAFT_AUTO_CLEANUP) {
 
       // After another insert, check for old drafts and cleanup as needed
-      $cnt = qsel('select count(*) from drafty_drafts'.$where);
+      $cnt = qsel('select count(*) from '.$tablename.$where);
       if ($cnt > DRAFT_GEN_KEEP)
-         mysqli_query($db, 'delete from drafty_drafts '.$where.
+         mysqli_query($db, 'delete from '.$tablename.$where.
                            ' order by generation limit '.($cnt-DRAFT_GEN_KEEP));
 
       // Also purge old drafts to keep the table tidy
-      if (!mysqli_query($db, 'DELETE FROM DRAFTY_DRAFTS WHERE save_time < DATE_SUB(NOW(), INTERVAL 6 MONTH)'))
+      if (!mysqli_query($db, 'DELETE FROM '.$tablename.' WHERE save_time < DATE_SUB(NOW(), INTERVAL 6 MONTH)'))
          die("Dated kill failed: $sql");
       }
 
    } //insert draft row
 
-   $gen = qsel('SELECT MAX(generation) FROM drafty_drafts WHERE draftid='.$draftid);
+   $gen = qsel('SELECT MAX(generation) FROM '.$tablename.' WHERE draftid='.$draftid);
 // $msg = sprintf('Save successfull gen #%d af id=%d [%s]',
 //                $gen, $draftid, $draft_ident);
    if (!empty($msg))
@@ -233,8 +242,10 @@ function save_draft_json($userid) {
 //   genno => drafts.generation
 function load_draft_json($userid) {
 
+   global $tablename;
+
    $sql = sprintf( 'SELECT draft_data 
-                      FROM drafty_drafts
+                      FROM '.$tablename.'
                      WHERE userid=%d
                        AND draft_ident="%s"
                        AND generation=%d', 
@@ -267,16 +278,16 @@ function load_draft_json($userid) {
 // 'max'  Highest existing generation for id
 function genlist_json($userid) {
 
-   global $db;
+   global $db, $tablename;
    $draft_ident = $_REQUEST['ident'];
 
    $sql = sprintf('
       SELECT *, TIME(save_time) 
-        FROM drafty_drafts 
+        FROM %s 
        WHERE userid=%d 
          AND draft_ident="%s"
        ORDER BY save_time DESC
-      ', $userid, myres($draft_ident));
+      ', $tablename, $userid, myres($draft_ident));
 
    $result['max'] = 0;
    $q = mysqli_query($db, $sql);
@@ -311,15 +322,14 @@ function genlist_json($userid) {
 // 'msg' is set for errors
 function killall_json($userid) {
 
-   global $db;
+   global $db, $tablename;
    $draft_ident = $_REQUEST['ident'];
 
    $sql = sprintf('
-      DELETE
-        FROM drafty_drafts 
+      DELETE FROM %s 
        WHERE userid=%d 
          AND draft_ident="%s"
-      ', $userid, myres($draft_ident));
+      ', $tablename, $userid, myres($draft_ident));
 
    if (!mysqli_query($db, $sql))
       die("Delete query fails");

@@ -25,12 +25,15 @@
 // Github/Internet release TODO
 // ----------------------------
 //  - Missing:
-//     - Multilanguage support, da-draft.js for danske tekster.
-//     - demo-drafts.php - get rid of GC specific stuff
-//     - backdraft-mysql.ajax.php - generic mysql BE, no GC-stuff
+//     - Better multilanguage support, da-draft.js for danske tekster?
 //     - Drafty demo-site on derkins, also release downloads here (github = dev downloads)
 //     - Properly documented on the github wiki
-//     - More great features :-)
+//  - Errorhandling:
+//     - Ajax script is missing
+//     - Error in SQL in backend
+//     - Save does not succeed (msg set in json)
+//     - Restore does not succeed (msg set in json)
+//     - Errors should be yellow when shown to user
 //  - Test:
 //     - Verify that generated HTML and CSS is HTML5 compat, w3c
 //     - Use Opera to verify CSS is valid
@@ -122,6 +125,11 @@ var Drafty = function(draft_ident, html_id, msg_id) {
    //todo what if the <div> isn't in the html?
    $('#drafty-box').css('visibility', 'visible');      //unhide if created hidden initially
 
+   if (this.html_id.substr(0,1) == '.')      // .drafty-inputs ?
+      this.inputs_list = document.getElementsByClassName(this.html_id.substr(1));
+   else
+      this.inputs_list = [ document.getElementById(this.html_id) ];
+
    this.setup_devmode(false);
    this.dmsg('Drafty object created');
 
@@ -211,28 +219,43 @@ Drafty.prototype.usermsg = function(msg) {
 
 Drafty.prototype.save_draft = function (autosaving) {
 
-   this.usermsg();      //clear any old message
-
-   var currval = $('#' + this.html_id).val();
-
    // --- Do some sanity checks before saving ---
       
+/* rare case
    // is there any text apart from WS?
    if ('' == currval.trim()) {    
       if (!autosaving)
          this.usermsg(this.umsgs.no_text);
       return;
    }
+*/
+
+   // convert html input data to json
+   var inputs = {};
+   for (var i = 0; i < this.inputs_list.length; i++) {
+      if (this.inputs_list[i].id == "")
+         console.error('Drafty.js: HTML inputs must have id=  -- id-less input not saved with draft');
+      else
+         inputs[ this.inputs_list[i].id ] = this.inputs_list[i].value;
+   }
+
+   if (inputs.length == 0) {
+      console.error('Drafty.js: No inputs to save drafts for!');
+      return;
+   }
+
+   var inputs_json = JSON.stringify(inputs);
+   // console.log('inputs json: '+inputs_json);
 
    // has text changed since last save?
-   if (this.last_saved == currval) {    
+   if (this.last_saved == inputs_json) {    
       if (!autosaving)
          this.usermsg(this.umsgs.no_chg1);
       return;
    }
 
    // has text changed since last restore?
-   if ((this.last_restored != '') && (currval == this.last_restored)) {
+   if ((this.last_restored != '') && (inputs_json == this.last_restored)) {
       if (!autosaving)
          this.usermsg(this.umsgs.no_chg2);
       return;
@@ -240,28 +263,25 @@ Drafty.prototype.save_draft = function (autosaving) {
 
    // --- Ok to save draft, go ahead ---
 
+   this.usermsg();      //clear any old message
+   this.dmsg('Saving draft');
+
    if (this.saving_cb)
       this.saving_cb(1);      //draft save commences
 
-   this.dmsg('Saving draft');
+   if (this.saving_cb)
+      this.saving_cb(2);      //Sending POST now
 
    var args = { 'op':   'save',
-                'data':  currval,
+                'data':  inputs_json,
                 'ident': this.draft_ident };
 
-   // 'this' is not available in the inline function, so save it in a var that is
-   var that = this;
-
-   if (that.saving_cb)
-      that.saving_cb(2);      //Sending POST now
+   var that = this;     // 'this' is not available in the inline function, so save it in a var that is
 
    $.post(this.ajax_url('save'), args, function(jobj,status) {
 
       if (that.saving_cb)
          that.saving_cb(3);   // Got response to POST
-
-//    console.log('jobj:');
-//    console.log(jobj);
 
       if (status != 'success') {
          that.errormsg('save_draft() ajax failure ' + status);
@@ -278,7 +298,7 @@ Drafty.prototype.save_draft = function (autosaving) {
          this.usermsg(this.umsgs.ajax_err + ': '+jobj.msg);
       else {
          that.refresh_genlist();
-         that.last_saved = currval;
+         that.last_saved = inputs_json;
          that.dmsg('Draft #'+jobj.gen+' saved');
       }
 
@@ -305,14 +325,23 @@ Drafty.prototype.restore_draft = function (genno) {
    var args = { 'op':   'load',
                 'genno':  genno,
                 'ident':  this.draft_ident };
-
    var that = this;
-   $.post(this.ajax_url('restore'), args, function(jobj,status) {
 
-      $('#' + that.html_id).val(jobj.data);
+   $.post(this.ajax_url('restore'), args, function(jobj,status) {
+      //console.log('restoring '+genno+' => '+ jobj.data);
+
+      var inputs = JSON.parse(jobj.data);
+      for (var key in inputs) {
+         if (inputs.hasOwnProperty(key)) {
+            // console.log(key + " -> " + inputs[key]);
+            $('#' + key).val(inputs[key]);
+         }
+      }
+
       that.last_restored = jobj.data;
 
-      that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
+      if (jobj.msg)
+         that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
 
       that.dmsg('Draft #'+genno+' restored ');
 
