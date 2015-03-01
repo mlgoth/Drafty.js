@@ -185,6 +185,7 @@ Drafty.prototype.errormsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
+   //$('#'+this.msg_id).html('<span class="drafty-error">&nbsp;'+msg+'&nbsp;</div>');
    this.usermsg(this.umsgs.ajax_err+': '+msg);   //NLS
 
 } // Drafty.errormsg()
@@ -202,10 +203,10 @@ Drafty.prototype.usermsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
-   if (msg) {
-      $('#'+this.msg_id).html('<span class="drafty-msg">&nbsp;'+msg+'&nbsp;</div>');
-   } else
-      $('#'+this.msg_id).html('');
+   if (msg)
+      $('#'+this.msg_id).html(msg);
+   else
+      $('#'+this.msg_id).html('&nbsp;');
 
 } // Drafty.usermsg()
 

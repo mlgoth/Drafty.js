@@ -56,7 +56,7 @@
       #drafty-box {
          border:     1px solid black;
          text-align: center;
-         width:      10em;
+         width:      12em;
          background: SkyBlue;
          font-size:  10pt;
       }
@@ -108,30 +108,12 @@
    <option value="none">Uncoloured</option>
 </select>
    <br><br>
-   <div id="textarea-container">
       <textarea id="bodytext" class="drafty-input" cols="75" rows="7">body text</textarea>
-      <br>
-      <div id="usermsg">umsg&nbsp;</div>
-      <br>
-         Autosave:
-<select id="autosave-select">
-   <option value="3">Often</option>
-   <option selected="" value="60">Regularly</option>
-   <option value="600">Rarely</option>
-   <option value="0">Don't autosave</option>
-</select>
-      &nbsp;&nbsp;
-      <button onclick="draft1.toggle_devmode();">Toggle devmode</button>
-
-   </div>
-   
    </td>
-
-   <td>
+   <td rowspan=5>
     <div id="drafty-box">
-      <b onclick="draft1.toggle_devmode();"><u>Draft list</u></b>
+      <b onclick="draft1.toggle_devmode();"><u>Draft versions</u></b>
       <div id="drafty-genlist"></div>
-      &nbsp;&nbsp;
       <div id="drafty-knobs">
          <div style="padding-top:5px;">
             <button id="save_button" onclick="draft1.save_draft();">Save</button>
@@ -140,6 +122,23 @@
          </div>
       </div>
      </div>
+   </td>
+   </tr>
+   <tr><td>
+      <div id="usermsg">&nbsp;</div>
+   </td></tr>
+   <tr><td>
+         Autosave:
+<select id="autosave-select" title="Set the interval for timed draft autosaves">
+   <option value="3">Often</option>
+   <option selected="" value="30">Regularly</option>
+   <option value="600">Rarely</option>
+   <option value="0">Don't autosave</option>
+</select>
+      &nbsp;&nbsp;
+      <button onclick="draft1.toggle_devmode();" title="Toggle development mode setting on the Drafty object">
+         Toggle devmode</button>
+   
    </td>
 
 </tr>
@@ -169,7 +168,7 @@
    // Removes all draftgens from table
    function kill_drafts() {
       draft1.kill_all();
-      draft1.usermsg('All your draft generations have been removed');
+      draft1.usermsg('All your bases have been removed');
       draft1.refresh_genlist();
    }
 
@@ -194,8 +193,12 @@
          switch (stage) {
             case 1: // save starts - hourglass mouse cursor while we work
                     document.body.style.cursor = 'progress';     
+                    $('#autosave-select').css('color', '');
+                    $('#autosave-select').css('background', 'green');
                     break;
             case 0: document.body.style.cursor = 'default';           // mouse cursor back to normal igen
+                    $('#autosave-select').css('color', '');
+                    $('#autosave-select').css('background', '');
                     break;
          } //switch
       };
@@ -220,7 +223,7 @@
          asave = localStorage[ LS_AUTOSAVE_SETTING ];
 
       draft1.autosave_setup(asave);
-      $("#drafty-knobs select").val(asave);
+      $("#autosave-select").val(asave);
 
       // Invoked when user changes autosave interval
       $('#autosave-select').change(function() { 
@@ -235,6 +238,7 @@
 
          // Adjust object autosave timer
          draft1.autosave_setup(newval);
+         draft1.usermsg("Saving draft every "+newval+" seconds");
       } );
 
       $('#save_button').click(function(){

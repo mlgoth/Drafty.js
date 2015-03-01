@@ -7,10 +7,7 @@
 //
 // TODO
 // ----
-//  - Test æ, ø, å support, save'n'restore
-//  - Test ", ' and \n for save & restore
 //  - Support UTF-8
-//  - Test with other browsers and platforms
 //
 //
 // POST arguments
@@ -37,7 +34,7 @@ global $db, $tablename;
 
 $tablename = 'drafty_drafts';                       //name of table in mysql db
 
-$db = mysqli_connect('localhost', 'shj', 'Latte', 'shj');     // EDIT*EDIT*EDIT
+$db = mysqli_connect('localhost', 'shj', 'Latte', 'shj');          // EDIT THIS
 if (!$db)
    die('Error connecting to Mysql-server');
 
@@ -58,7 +55,7 @@ $myuserid = 42;
 
 // --- Is this running from a webserver? --------------------------------------
 
-if (empty($_POST['op'])) {   // require _POST when in prod to make hacking a bit more bothersome
+if (php_sapi_name()==="cli") {
    
    // Run simple test when script is invoked from the shell
    $_REQUEST['ident'] = 'Unit test!';     // Common to all the _json funcs
@@ -84,11 +81,11 @@ if (empty($_POST['op'])) {   // require _POST when in prod to make hacking a bit
    echo "\n\n*** DEATH ***\n";
    killall_json($myuserid);
 
-   exit(0);
+   die("Welcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.");
 }
 
-if (php_sapi_name()==="cli")
-   die("Welcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.");
+if (empty($_POST['op']))    // require _POST when in prod to make hacking a bit more bothersome
+   die("Thou shall post");
 
 
 // --- Main -------------------------------------------------------------------
@@ -107,7 +104,7 @@ switch ($_REQUEST['op']) {
       killall_json($myuserid);
       break;
    default:
-      die("Illicit behavior detected");
+      die("Illicit behavior detected");      //no nice json error is returned here (purposely)
 } //switch op
 
 exit(0);
@@ -144,7 +141,7 @@ function qsel($sql, $expected_rows = 1) {
 
 } //qsel
 
-// As qsel(), but accept sprintf() format and args
+// As qsel(), but accept printf() format and args
 function qself($sql, $args) {
     return qsel(vsprintf($sql, $args));
 }
@@ -160,17 +157,17 @@ function trysf($sql, $args) {
 
 function myres($string) {
    global $db;
-   return mysqli_real_escape_string($db, $string);
+   return $db->escape_string($string);
 }
 
+
 // ----------------------------------------------------------------------------
-
-// POST inputs:
-//   ident => drafts.draft_ident
-//   data => text to save
-
 // Save draft text to db, creating a new generation of the draft if the
 // previous save was created more than DRAFT_GEN_INTERVAL_SECS ago.
+//
+// Additional POST inputs:
+//   data => text to save
+
 function save_draft_json($userid) {
 
    global $db, $tablename;
@@ -188,8 +185,6 @@ function save_draft_json($userid) {
                              UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(create_time) AS age_in_secs
                         FROM '.$tablename.' '.$where.'
                        ORDER BY generation DESC LIMIT 1');
-
-//var_dump($row);
 
    if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
       $draftid = $row['draftid'];
@@ -210,24 +205,22 @@ function save_draft_json($userid) {
          die("Mysql insert error");
       $draftid = mysqli_insert_id($db);
 
-   if (DRAFT_AUTO_CLEANUP) {
-
       // After another insert, check for old drafts and cleanup as needed
-      $cnt = qsel('select count(*) from '.$tablename.$where);
-      if ($cnt > DRAFT_GEN_KEEP)
-         mysqli_query($db, 'delete from '.$tablename.$where.
-                           ' order by generation limit '.($cnt-DRAFT_GEN_KEEP));
+      if (DRAFT_AUTO_CLEANUP) {
 
-      // Also purge old drafts to keep the table tidy
-      if (!mysqli_query($db, 'DELETE FROM '.$tablename.' WHERE save_time < DATE_SUB(NOW(), INTERVAL 6 MONTH)'))
-         die("Dated kill failed: $sql");
+         $cnt = qsel('select count(*) from '.$tablename.$where);
+         if ($cnt > DRAFT_GEN_KEEP)
+            mysqli_query($db, 'delete from '.$tablename.$where.
+                              ' order by generation limit '.($cnt-DRAFT_GEN_KEEP));
+
+         // Also purge old drafts to keep the table tidy
+         if (!mysqli_query($db, 'DELETE FROM '.$tablename.' WHERE save_time < DATE_SUB(NOW(), INTERVAL 6 MONTH)'))
+            die("Dated kill failed: $sql");
       }
 
    } //insert draft row
 
    $gen = qsel('SELECT MAX(generation) FROM '.$tablename.' WHERE draftid='.$draftid);
-// $msg = sprintf('Save successfull gen #%d af id=%d [%s]',
-//                $gen, $draftid, $draft_ident);
    if (!empty($msg))
       $result['msg'] = utf8_encode($msg);
    $result['gen'] = $gen;
@@ -237,8 +230,7 @@ function save_draft_json($userid) {
 
 
 // ----------------------------------------------------------------------------
-// POST inputs:
-//   ident => drafts.draft_ident
+// Additional POST inputs:
 //   genno => drafts.generation
 function load_draft_json($userid) {
 
@@ -270,8 +262,6 @@ function load_draft_json($userid) {
 
 // ----------------------------------------------------------------------------
 
-// POST inputs:
-//   draft_id => drafts.draft_ident
 // Returns:
 // 'html' vertical <ul> with list of draft generations to be put in a <div> or <td>
 // 'cnt'  Number of existing draft generations for draft_id
@@ -289,8 +279,8 @@ function genlist_json($userid) {
        ORDER BY save_time DESC
       ', $tablename, $userid, myres($draft_ident));
 
-   $result['max'] = 0;
    $q = mysqli_query($db, $sql);
+   $result = array('max' => 0, 'cnt' => mysqli_num_rows($q));
 
    if ( ! ( $row = $q->fetch_array(MYSQLI_ASSOC) ) )
       $msg = $html = "No saved drafts";
@@ -304,7 +294,6 @@ function genlist_json($userid) {
       } while ( $row = $q->fetch_array(MYSQLI_ASSOC) );
    }
 
-   $result['cnt'] = mysqli_num_rows($q);
    if (!empty($msg))
       $result['msg']  = utf8_encode($msg);
    if (!empty($html))
@@ -316,10 +305,7 @@ function genlist_json($userid) {
 
 // ----------------------------------------------------------------------------
 
-// POST inputs:
-//   draft_id => drafts.draft_ident
-// Returns cnt with number of drafts removed
-// 'msg' is set for errors
+// Returns 'cnt' with number of drafts removed
 function killall_json($userid) {
 
    global $db, $tablename;
@@ -334,7 +320,7 @@ function killall_json($userid) {
    if (!mysqli_query($db, $sql))
       die("Delete query fails");
    if (($result['cnt'] = $db->affected_rows) == 0)
-      $msg = 'Ingen kladder fundet for '.$draft_ident;
+      $msg = 'No draft versions found for '.$draft_ident;
 
    if ( ! empty($msg) )
       $result['msg']  = utf8_encode($msg);
@@ -342,35 +328,6 @@ function killall_json($userid) {
 
 } // killall_json()
 
-
-// ----------------------------------------------------------------------------
-// POST inputs:
-//   ident => drafts.draft_ident
-// Returns 'cnt' with number of existing draft generations.
-// 'maxgen' are only set if any draft(s) are found.
-
-// todo just return maxgen? also return timestamp for latest draft?
-/**** unused
-function count_drafts_json() {
-
-   $uid = $u->uid();
-   $ident = myres($_REQUEST['ident']);
-
-   $sql = sprintf('SELECT COUNT(*) AS cnt FROM drafts WHERE userid=%d AND draft_ident="%s"',
-                    $uid, $ident);
-   if ( $result['cnt'] = $db->trys($sql)) {
-      $row = $db->qself('SELECT MAX(generation) AS maxgen 
-                            FROM drafts
-                           WHERE userid=%d AND draft_ident="%s"',
-                         $uid, $ident);
-      $result['maxgen'] = $row['maxgen'];
-   } else
-      $result['cnt'] = 0;   //no existing drafts
-
-   echo json_encode( $result );
-
-} //count
-**************/
 
 // ----------------------------------------------------------------------------
 // $Id: backdraft.ajax.php 2092 2015-02-22 18:48:20Z shj $
