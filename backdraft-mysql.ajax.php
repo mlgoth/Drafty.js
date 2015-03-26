@@ -165,6 +165,9 @@ function myres($string) {
 // Save draft text to db, creating a new generation of the draft if the
 // previous save was created more than DRAFT_GEN_INTERVAL_SECS ago.
 //
+// Optionally returns 'glhtml' with fresh HTML for the genlist - same html
+// output as genlist_json() to save an extra AJAX call.
+//
 // Additional POST inputs:
 //   data => text to save
 

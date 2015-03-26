@@ -130,6 +130,8 @@ var Drafty = function(draft_ident, html_id, msg_id) {
    else
       this.inputs_list = [ document.getElementById(this.html_id) ];
 
+   this.initial_data = this.fetch_inputs();
+
    this.setup_devmode(false);
    this.dmsg('Drafty object created');
 
@@ -185,8 +187,7 @@ Drafty.prototype.errormsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
-   //$('#'+this.msg_id).html('<span class="drafty-error">&nbsp;'+msg+'&nbsp;</div>');
-   this.usermsg(this.umsgs.ajax_err+': '+msg);   //NLS
+   this.usermsg(msg, "drafty-error"); //NLS
 
 } // Drafty.errormsg()
 
@@ -195,7 +196,7 @@ Drafty.prototype.errormsg = function(msg) {
 // Public methods
 
 // Show message to user, maybe highlighted
-Drafty.prototype.usermsg = function(msg) {
+Drafty.prototype.usermsg = function(msg, css_class) {
 
    if (msg)
       this.dmsg('uMsg: '+msg);       //always log
@@ -203,12 +204,37 @@ Drafty.prototype.usermsg = function(msg) {
    if ( ! this.msg_id )    //output user messages at all?
       return;
 
-   if (msg)
-      $('#'+this.msg_id).html(msg);
-   else
-      $('#'+this.msg_id).html('&nbsp;');
+   if (msg) {
+      if (!css_class)
+         css_class = 'drafty-msg';
+      $('#'+this.msg_id).html('<span class="'+css_class+'">&nbsp;'+msg+'&nbsp;</span>');
+   } else
+      $('#'+this.msg_id).html('&nbsp;');     //to avoid the <div> "collapsing" due to being empty
 
 } // Drafty.usermsg()
+
+
+// ----------------------------------------------------------------------------
+
+// Retrieve & convert html input data to json
+Drafty.prototype.fetch_inputs = function () {
+
+   var inputs = {};
+   for (var i = 0; i < this.inputs_list.length; i++) {
+      if (this.inputs_list[i].id == "")
+         console.error('Drafty.js: HTML inputs must have id=  -- id-less input not saved with draft');
+      else
+         inputs[ this.inputs_list[i].id ] = this.inputs_list[i].value;
+   }
+
+   if (inputs.length == 0) {
+      console.error('Drafty.js: No inputs to save drafts for!');
+      return '';
+   }
+
+   return JSON.stringify(inputs);
+
+} // fetch_inputs()
 
 
 // ----------------------------------------------------------------------------
@@ -222,31 +248,26 @@ Drafty.prototype.save_draft = function (autosaving) {
 
    // --- Do some sanity checks before saving ---
       
-/* rare case
-   // is there any text apart from WS?
-   if ('' == currval.trim()) {    
+   var inputs_json = this.fetch_inputs();
+
+   // has data changed since drafty object was created?
+   if (inputs_json == this.initial_data) {    
       if (!autosaving)
          this.usermsg(this.umsgs.no_text);
       return;
    }
-*/
 
-   // convert html input data to json
-   var inputs = {};
-   for (var i = 0; i < this.inputs_list.length; i++) {
-      if (this.inputs_list[i].id == "")
-         console.error('Drafty.js: HTML inputs must have id=  -- id-less input not saved with draft');
-      else
-         inputs[ this.inputs_list[i].id ] = this.inputs_list[i].value;
-   }
-
-   if (inputs.length == 0) {
-      console.error('Drafty.js: No inputs to save drafts for!');
-      return;
-   }
-
-   var inputs_json = JSON.stringify(inputs);
-   // console.log('inputs json: '+inputs_json);
+ // // convert html input data to json
+ // var inputs = {};
+ // for (var i = 0; i < this.inputs_list.length; i++) {
+ //    if (this.inputs_list[i].id == "")
+ //       console.error('Drafty.js: HTML inputs must have id=  -- id-less input not saved with draft');
+ //    else
+ //       inputs[ this.inputs_list[i].id ] = this.inputs_list[i].value;
+ // }
+//
+// var inputs_json = JSON.stringify(inputs);
+// // console.log('inputs json: '+inputs_json);
 
    // has text changed since last save?
    if (this.last_saved == inputs_json) {    
@@ -298,7 +319,10 @@ Drafty.prototype.save_draft = function (autosaving) {
       if (jobj.msg)
          this.usermsg(this.umsgs.ajax_err + ': '+jobj.msg);
       else {
-         that.refresh_genlist();
+         if (jobj.glhtml)     // if ajax 'save' returned fresh genlist html, use it
+            $('#drafty-genlist').html(jobj.glhtml);
+         else
+            that.refresh_genlist();    // Another AJAX call to refresh genlist pane
          that.last_saved = inputs_json;
          that.dmsg('Draft #'+jobj.gen+' saved');
       }
