@@ -46,8 +46,8 @@
 
          padding:    7px;
          text-align: left;
-         color:      white;
-         background: grey;
+         color:      black;
+         background: SkyBlue;
          font-size:  11pt;
 
          visibility: hidden;  /* JS unhides as needed */
@@ -57,7 +57,8 @@
          border:     1px solid black;
          text-align: center;
          width:      12em;
-         background: SkyBlue;
+         background: grey;
+         color: white;
          font-size:  10pt;
       }
 
@@ -78,6 +79,20 @@
          padding-left:5em;
       }
 
+      /* Highlights pane div's, all hidden initially */
+      .drafty-hls {
+         display:none;
+      }
+
+      /* Table cell with the rotating hl texts */
+      #hlcell {
+         border:1px solid black;
+         height:140px;
+         width:14pt;
+         background:GoldenRod;
+         vertical-align:top;
+      }
+
    </style>
 
    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
@@ -88,7 +103,7 @@
 
 <body><center>
 <br>
-<h2>Demo of Drafty.js with a PHP/MySQL backend</h2>
+<h2>Demo of Drafty.js using a PHP/MySQL backend</h2>
 <br>
 
 <table border=0 cellpadding="10" align="center">
@@ -97,20 +112,13 @@
 
    <td>
 
-   Heading:&nbsp;&nbsp;
+   Heading:&nbsp;
    <input class="drafty-input" type="text" size=60 id="headtext" maxlength=100 value="sample header">
    <br><br>
-   Test select for draft saving:
-<select id="demo-select" class="drafty-input">
-   <option value="green">Green</option>
-   <option selected="" value="orange">Orange</option>
-   <option value="red">Red</option>
-   <option value="none">Uncoloured</option>
-</select>
-   <br><br>
-      <textarea id="bodytext" class="drafty-input" cols="75" rows="7">body text</textarea>
+   Longer text to autosave:<br>
+      <textarea id="bodytext" class="drafty-input" cols="75" rows="7">Input or change text to start making drafts&hellip;</textarea>
    </td>
-   <td rowspan=5>
+   <td rowspan=3>
     <div id="drafty-box">
       <b onclick="draft1.toggle_devmode();"><u>Draft versions</u></b>
       <div id="drafty-genlist"></div>
@@ -140,6 +148,37 @@
          Toggle devmode</button>
    
    </td>
+
+   <tr><td>&nbsp;</td></tr>
+
+   <tr><td id="hlcell">
+      <div id="highlight-1" class="drafty-hls">
+         Drafty.js supports multiple generations of drafts. In the demonstration setup, a new draft generation is
+         created once per minute. You can preserve as many generations as needed, though this demo is limited to 25
+         to avoid spamming the demo database.
+      </div>
+      <div id="highlight-2" class="drafty-hls">
+         Drafty.js supports JavaScript callback functions while saving drafts. This can be used to display
+         a simple "Saving" text to the user. In this demonstration all autosaved input fields flash green
+         when saving starts and returns to normal color when the save is complete.
+
+         <br><br>TODO: Go/stay red on draft save errors
+      </div>
+      <div id="highlight-3" class="drafty-hls">
+         The demonstration page automatically saves changed input fields every few seconds by default. The user
+         can freely change the save interval or disable autosaving. With autosave disabled, user must use the
+         Save-button to save drafts manually.</p>
+         
+         The web page can also save drafts by calling the <code>Drafty.save_draft()</code> method as needed.</p>
+      </div>
+      <div id="highlight-4" class="drafty-hls">
+         The text you input on this page is automatically saved to a MySQL database. Once a draft is saved, 
+         the text is remembered for your future visits.
+         <br><br>
+         You can close the browser tab, reload the page, restart the browser or experience a power outage, but
+         when you come back here, your latest draft text will be restored automatically.
+      </div>
+   </td></tr>
 
 </tr>
 </table>
@@ -216,7 +255,38 @@
             alert(msg);    // Horrible, ugly popup
       });
 
-      // Restore users autosave setting from browser LS
+
+      // --- Setup rotating highlights pane ---
+
+      var num_hl=1, curr_hl=0;
+
+      function next_highlight() {
+         if ( ! curr_hl )
+            curr_hl = random_int(1,num_hl);
+         else {
+            $('#highlight-'+curr_hl).css('display', 'none');      //hide current one
+            if (++curr_hl > num_hl)
+               curr_hl = 1;
+         }
+         $('#highlight-'+curr_hl).css('display', 'block');      //display new one
+      } //next_highlight
+
+      while (num_hl<100)      //count number of hl divs
+         if ($('#highlight-'+(num_hl+1)).length) {
+            num_hl++;
+         } else
+            break;      //no more hls
+
+      next_highlight();    //display first text
+
+      var hl_timer = window.setInterval(function() {
+//       console.log('timer curr='+curr_hl+' count='+num_hl);
+         next_highlight();
+      }, 12*1000);
+
+
+      // --- Restore users autosave setting from browser LS ---
+
       //todo move to drafty.js somehow
       var asave = DRAFTY_AUTOSAVE_DEFAULT;
       if (LS_AUTOSAVE_SETTING in localStorage)

@@ -7,7 +7,7 @@
 //
 // TODO
 // ----
-//  - Support UTF-8
+//  - Support UTF-8. It may be supported already, not tetsed.
 //
 //
 // POST arguments
@@ -32,9 +32,8 @@ error_reporting(E_ALL|E_STRICT);
 
 global $db, $tablename;
 
-$tablename = 'drafty_drafts';                       //name of table in mysql db
-
-$db = mysqli_connect('localhost', 'shj', 'Latte', 'shj');          // EDIT THIS
+// Create this from a copy of the -dist file and edit
+require_once('mysql-setup.php');
 if (!$db)
    die('Error connecting to Mysql-server');
 
@@ -46,7 +45,7 @@ define('DRAFT_GEN_INTERVAL_SECS', 1*60);
 define('DRAFT_AUTO_CLEANUP', false);
 
 // Draft generations to keep per draft_ident/userid when cleaning up
-define('DRAFT_GEN_KEEP', 100);
+define('DRAFT_GEN_KEEP', 25);
 
 // Set this when user logs in to the web app/site
 // Or just set it to 0 to ignore userids
@@ -292,8 +291,8 @@ function genlist_json($userid) {
       do {
          if ($row['generation'] > $result['max'])
             $result['max'] = $row['generation'];
-         $html .= sprintf('<a class="drafty-link" href="javascript:drafty_restore_genno(%d, \'%s\');">%s</a><br>',
-                          $row['generation'], $draft_ident, $row['save_time']);
+         $html .= sprintf('<a class="drafty-link" href="javascript:drafty_restore_genno(%d, \'%s\');" title="%s">%s</a><br>',
+                          $row['generation'], $draft_ident, "Data:".htmlspecialchars($row['draft_data']), $row['save_time']);
       } while ( $row = $q->fetch_array(MYSQLI_ASSOC) );
    }
 

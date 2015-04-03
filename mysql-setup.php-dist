@@ -1,0 +1,11 @@
+<?php
+
+// Drafty.js/mysql-setup.php-dist
+// Copy this file to mysql-setup.php and edit MySQL connection parameters to run sample backend script.
+// 03-Apr-2015/shj
+
+$db = mysqli_connect('localhost', 'mysqluser', 'secretpassword', 'mydatabase');          // EDIT THIS
+
+$tablename = 'drafty_drafts';                       //name of table in mysql db
+
+?>
