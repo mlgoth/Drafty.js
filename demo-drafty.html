@@ -57,9 +57,9 @@
          border:     1px solid black;
          text-align: center;
          width:      12em;
-         background: grey;
-         color: white;
+         background: Gainsboro;
          font-size:  10pt;
+         padding-top: 5px;
       }
 
       #drafty-genlist {
@@ -127,6 +127,8 @@
             <button id="save_button" onclick="draft1.save_draft();">Save</button>
             &nbsp;
             <button id="kill_button" onclick="kill_drafts();">Purge drafts</button>
+            <button onclick="draft1.toggle_devmode();" title="Toggle development mode setting on the Drafty object">
+               Toggle devmode</button>
          </div>
       </div>
      </div>
@@ -138,14 +140,11 @@
    <tr><td>
          Autosave:
 <select id="autosave-select" title="Set the interval for timed draft autosaves">
-   <option value="3">Often</option>
+   <option value="5">Often</option>
    <option selected="" value="30">Regularly</option>
    <option value="600">Rarely</option>
    <option value="0">Don't autosave</option>
 </select>
-      &nbsp;&nbsp;
-      <button onclick="draft1.toggle_devmode();" title="Toggle development mode setting on the Drafty object">
-         Toggle devmode</button>
    
    </td>
 
@@ -159,10 +158,8 @@
       </div>
       <div id="highlight-2" class="drafty-hls">
          Drafty.js supports JavaScript callback functions while saving drafts. This can be used to display
-         a simple "Saving" text to the user. In this demonstration all autosaved input fields flash green
+         a simple "Saving" text to the user. In this demonstration the autosave &lt;select&gt; flash green
          when saving starts and returns to normal color when the save is complete.
-
-         <br><br>TODO: Go/stay red on draft save errors
       </div>
       <div id="highlight-3" class="drafty-hls">
          The demonstration page automatically saves changed input fields every few seconds by default. The user
@@ -230,14 +227,9 @@
       // Called when Drafty.js is saving a draft
       draft1.saving_cb = function(stage) {
          switch (stage) {
-            case 1: // save starts - hourglass mouse cursor while we work
-                    document.body.style.cursor = 'progress';     
-                    $('#autosave-select').css('color', '');
-                    $('#autosave-select').css('background', 'green');
+            case 1: $('#autosave-select').css('background', 'LimeGreen');
                     break;
-            case 0: document.body.style.cursor = 'default';           // mouse cursor back to normal igen
-                    $('#autosave-select').css('color', '');
-                    $('#autosave-select').css('background', '');
+            case 0: $('#autosave-select').css('background', '');
                     break;
          } //switch
       };
@@ -258,11 +250,11 @@
 
       // --- Setup rotating highlights pane ---
 
-      var num_hl=1, curr_hl=0;
+      var num_hl=0, curr_hl=0;
 
       function next_highlight() {
          if ( ! curr_hl )
-            curr_hl = random_int(1,num_hl);
+            curr_hl = random_int(1,num_hl);     //start out by selecting a random hl
          else {
             $('#highlight-'+curr_hl).css('display', 'none');      //hide current one
             if (++curr_hl > num_hl)
@@ -271,23 +263,19 @@
          $('#highlight-'+curr_hl).css('display', 'block');      //display new one
       } //next_highlight
 
-      while (num_hl<100)      //count number of hl divs
-         if ($('#highlight-'+(num_hl+1)).length) {
-            num_hl++;
-         } else
-            break;      //no more hls
+      while ($('#highlight-'+(num_hl+1)).length)         //count number of hl divs in the html
+         num_hl++;
 
       next_highlight();    //display first text
 
-      var hl_timer = window.setInterval(function() {
-//       console.log('timer curr='+curr_hl+' count='+num_hl);
+      /*var hl_timer =*/ window.setInterval(function() {
          next_highlight();
-      }, 12*1000);
+      }, 15*1000);
 
 
       // --- Restore users autosave setting from browser LS ---
 
-      //todo move to drafty.js somehow
+      //todo Implement in drafty.js somehow
       var asave = DRAFTY_AUTOSAVE_DEFAULT;
       if (LS_AUTOSAVE_SETTING in localStorage)
          asave = localStorage[ LS_AUTOSAVE_SETTING ];
@@ -308,7 +296,10 @@
 
          // Adjust object autosave timer
          draft1.autosave_setup(newval);
-         draft1.usermsg("Saving draft every "+newval+" seconds");
+         if (newval == 0)
+            draft1.usermsg("Timed autosave have been disabled");
+         else
+            draft1.usermsg("Saving draft every "+newval+" seconds");
       } );
 
       $('#save_button').click(function(){

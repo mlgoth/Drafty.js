@@ -345,6 +345,7 @@ Drafty.prototype.save_draft = function (autosaving) {
 
 // TODO Save draft before restoring? (avoid loosing changes in input field, if any)
 // todo error checking, also for invalid json
+// todo restore only input fields known to the current object (don't reestore fields that developer dropped since the draft save)
 Drafty.prototype.restore_draft = function (genno) {
 
    var args = { 'op':   'load',
@@ -536,72 +537,16 @@ Drafty.prototype.toggle_devmode = function() {
 // initialize drafts system
 //window.onload = function() {
 
-// div = '<span id="draft_status"></span>';
-// $('#draft_hdiv1').html(div);
-// $('#draft_status').html('Initial status!');
-
-//   div = '<div id="draft_msg" style="background:pink; font-size:large">draft_msg</div>';
-//   $('#draft_botdiv').html(div);
-//   $('#draft_msg').html('Initial message!');
+//include jquery
+//include drafty storage mods
 
 // console.log('drafts setup now');
 //}
 
 
-// ------------------------------------------------------------------------
-// Class (object)
-// ------------------------------------------------------------------------
-
-/*
-  var as1 = new autosave_input('commenthead', 'thread:'+kp_ct_type+':'+kp_ct_id);
-  as1.try_load();
-
-todo
-----
- - Autosave bliver ikke enabled efter ajax paging i kpager
- - Check for forsvundet kladde i db ved onfocus
-    - Hvis bruger har slettet eller postet fra en anden browser
-    - alert("Die udkast ist phersvünden!");
-
-
-
-var params = [
-   input_id: 'kommentar_body',   // Input field to autosave drafts from
-   autosave_after_idle_secs: 5,        // 0 to disable idle saving
-   autosave_every_secs: 60,            // Only on changes though
-   message_elem_id: 'drafty_msgs',     // "All changes saved"
-   browser_save: true,
-   server_save: true,
-];
-
-*/
+/********************** 
 
 function autosave_input(html_id, draft_ident) {
-
-   // !!! further initialization code at the bottom 
-
-   function testForChange(that) {
-      if (! that)
-         that = this;
-      if (that.input_area.value == that.last_saved)
-         return;     //no changes since last save
-      that.save_draft();
-   }
-
-   function clear_timer() {
-      if (this.timer) {
-         window.clearInterval(this.timer);
-         this.timer = null;
-      }
-   }
-
-   function setup_timer() {
-      this.clear_timer();
-      var that = this;
-      this.timer = window.setInterval(function() {
-         testForChange(that);
-      }, 8*1000);
-   }
 
 // d = new Date();
 // $("#draft_status").html('Udkast #'+jobj.gen+' gemt ' + d.hhmm());
@@ -632,6 +577,7 @@ function autosave_input(html_id, draft_ident) {
 
 } // autosave_input constructor
 
+**********************/
 
 // ----------------------------------------------------------------------------
 // $Id: drafty.js 2094 2015-02-22 22:52:41Z shj $
