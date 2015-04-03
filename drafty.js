@@ -88,20 +88,16 @@ to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
 //
 // ----------------------------------------------------------------------------
 
-// Add the basic CSS that we need
-
-$('head').append("/* '#' er id og '.' er class, husk det nu. */");
-
 
 // ----------------------------------------------------------------------------
 /* Drafty constructor
 
 Required arguments:
    draft_ident : uniquely identifies this particular draft - used as key in SQL db
-   html_id     : id of input field whose content to save as drafts
+   html_id     : HTML id or class of input field(s) whose content to save as drafts
 
 Optional arguments:
-   msg_id   : html id of div for status and debug output
+   msg_id   : html id of div for status messages
 
 */
 
@@ -256,18 +252,6 @@ Drafty.prototype.save_draft = function (autosaving) {
          this.usermsg(this.umsgs.no_text);
       return;
    }
-
- // // convert html input data to json
- // var inputs = {};
- // for (var i = 0; i < this.inputs_list.length; i++) {
- //    if (this.inputs_list[i].id == "")
- //       console.error('Drafty.js: HTML inputs must have id=  -- id-less input not saved with draft');
- //    else
- //       inputs[ this.inputs_list[i].id ] = this.inputs_list[i].value;
- // }
-//
-// var inputs_json = JSON.stringify(inputs);
-// // console.log('inputs json: '+inputs_json);
 
    // has text changed since last save?
    if (this.last_saved == inputs_json) {    

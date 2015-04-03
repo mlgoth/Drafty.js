@@ -47,10 +47,6 @@ define('DRAFT_AUTO_CLEANUP', false);
 // Draft generations to keep per draft_ident/userid when cleaning up
 define('DRAFT_GEN_KEEP', 25);
 
-// Set this when user logs in to the web app/site
-// Or just set it to 0 to ignore userids
-$myuserid = 42;
-
 
 // --- Is this running from a webserver? --------------------------------------
 
@@ -88,6 +84,10 @@ if (empty($_POST['op']))    // require _POST when in prod to make hacking a bit 
 
 
 // --- Main -------------------------------------------------------------------
+
+// Set this when user logs in to the web app/site
+// Or just set it to 0 to ignore userids
+$myuserid = 42; //$_REQUEST['userid'];
 
 switch ($_REQUEST['op']) {
    case 'save':
