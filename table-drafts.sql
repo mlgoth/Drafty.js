@@ -7,8 +7,8 @@ CREATE TABLE drafty_drafts (
 
    -- Automatic stuff
    draftid        INT        AUTO_INCREMENT PRIMARY KEY,
-   create_time    TIMESTAMP  NOT NULL                    COMMENT "Row insertion time",
    save_time      TIMESTAMP  NOT NULL                    COMMENT "When draft_data was last updated",
+   create_time    TIMESTAMP  NOT NULL                    COMMENT "Row insertion time",
 
    -- Identifying stuff
    draft_ident    VARCHAR(42)       NOT NULL             COMMENT "Unique identifier for draft, often the HTML id for input field",
