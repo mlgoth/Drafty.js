@@ -9,10 +9,9 @@
 // Before-prod TODO
 // ----------------
 //  - All HTML id's should be named "drafty-XXX"
-//  - "Saved" and "Not saved" indicators in green and red
-//     - Like Google Docs, "All changes saved to drive"
-//  - Implement testForChange() from old drafts.js
+//  - Implement testForChange() from old drafts.js?
 //  - Remove all old drafts.js code from bottom of this file
+//  - Test with multiple Drafty objects on a single webpage
 //
 //
 // GC release functionality missing/incomplete
@@ -44,6 +43,8 @@
 //
 // Future functionality TODO
 // -------------------------
+//  - "Saved" and "Not saved" indicators in green and red
+//     - Like Google Docs, "All changes saved to drive"
 //  - Optionally use localStorage[] to save drafts instead of a backend script on the webserver
 //     - DraftyWBE inherits Drafty, uses webserver BE script as draft storage
 //     - DraftyH5 or DraftyLS or DraftyH5LS (HTML5/localStorage cryptically to make 
@@ -109,6 +110,7 @@ var Drafty = function(draft_ident, html_id, msg_id) {
    this.html_id = html_id;
    this.last_restored = '';
    this.msg_id = msg_id ? msg_id : null;
+   this.uid = '0';      //just some value until object owner overrides it with set_userid()
 
    // Default messages shown to end user - these can be overriden in usercode to talk a different language
    this.umsgs = { 
@@ -121,12 +123,19 @@ var Drafty = function(draft_ident, html_id, msg_id) {
    //todo what if the <div> isn't in the html?
    $('#drafty-box').css('visibility', 'visible');      //unhide if created hidden initially
 
-   if (this.html_id.substr(0,1) == '.')      // .drafty-inputs ?
+   if (this.html_id.substr(0,1) == '.')      // A class like .drafty-inputs ?
       this.inputs_list = document.getElementsByClassName(this.html_id.substr(1));
    else
-      this.inputs_list = [ document.getElementById(this.html_id) ];
+      this.inputs_list = [ document.getElementById(this.html_id) ];     // Single html id
 
    this.initial_data = this.fetch_inputs();
+
+   // This JS is run when user clicks a draft gen to restore it
+   // %d is replaced by the generation number
+   // .restore_js can be replaced with user code as needed
+   //todo doesn't work!
+   this.restore_js = this.constructor.name + '.restore_draft(%d);';
+// console.log(this);
 
    this.setup_devmode(false);
    this.dmsg('Drafty object created');
@@ -143,8 +152,9 @@ Drafty.prototype.setup_devmode = function(what) {
       if (document.getElementById('drafty-logpane'))
          this.log_pane = '#drafty-logpane';
       if (this.log_pane) {
-         $(this.log_pane).css('display', 'block');      //unhide if created hidden initially
-         $(this.log_pane).css('visibility', 'visible');      //unhide if created hidden initially
+         // show if created hidden initially
+         $(this.log_pane).css('display', 'block');
+         $(this.log_pane).css('visibility', 'visible');
       }
    } else {
       if (this.log_pane)
@@ -189,29 +199,6 @@ Drafty.prototype.errormsg = function(msg) {
 
 
 // ----------------------------------------------------------------------------
-// Public methods
-
-// Show message to user, maybe highlighted
-Drafty.prototype.usermsg = function(msg, css_class) {
-
-   if (msg)
-      this.dmsg('uMsg: '+msg);       //always log
-
-   if ( ! this.msg_id )    //output user messages at all?
-      return;
-
-   if (msg) {
-      if (!css_class)
-         css_class = 'drafty-msg';
-      $('#'+this.msg_id).html('<span class="'+css_class+'">&nbsp;'+msg+'&nbsp;</span>');
-   } else
-      $('#'+this.msg_id).html('&nbsp;');     //to avoid the <div> "collapsing" due to being empty
-
-} // Drafty.usermsg()
-
-
-// ----------------------------------------------------------------------------
-
 // Retrieve & convert html input data to json
 Drafty.prototype.fetch_inputs = function () {
 
@@ -231,6 +218,36 @@ Drafty.prototype.fetch_inputs = function () {
    return JSON.stringify(inputs);
 
 } // fetch_inputs()
+
+
+// ----------------------------------------------------------------------------
+// Public methods
+
+
+// Call this after object construction, if your application/page/site
+// supports multiple (web)users. 'userid' can be either a string or a number.
+Drafty.prototype.set_userid = function(userid) {
+   this.uid = userid;
+} // Drafty.set_userid()
+
+
+// Show message to user, maybe highlighted
+Drafty.prototype.usermsg = function(msg, css_class) {
+
+   if (msg)
+      this.dmsg('uMsg: '+msg);       //always log
+
+   if ( ! this.msg_id )    //output user messages at all?
+      return;
+
+   if (msg) {
+      if (!css_class)
+         css_class = 'drafty-msg';
+      $('#'+this.msg_id).html('<span class="'+css_class+'">&nbsp;'+msg+'&nbsp;</span>');
+   } else
+      $('#'+this.msg_id).html('&nbsp;');     //to avoid the <div> "collapsing" due to being empty
+
+} // Drafty.usermsg()
 
 
 // ----------------------------------------------------------------------------
@@ -278,7 +295,8 @@ Drafty.prototype.save_draft = function (autosaving) {
    if (this.saving_cb)
       this.saving_cb(2);      //Sending POST now
 
-   var args = { 'op':   'save',
+   var args = { 'op':    'save',
+                'uid':   this.uid,
                 'data':  inputs_json,
                 'ident': this.draft_ident };
 
@@ -332,9 +350,10 @@ Drafty.prototype.save_draft = function (autosaving) {
 // todo restore only input fields known to the current object (don't reestore fields that developer dropped since the draft save)
 Drafty.prototype.restore_draft = function (genno) {
 
-   var args = { 'op':   'load',
-                'genno':  genno,
-                'ident':  this.draft_ident };
+   var args = { 'op':    'load',
+                'uid':   this.uid,
+                'genno': genno,
+                'ident': this.draft_ident };
    var that = this;
 
    $.post(this.ajax_url('restore'), args, function(jobj,status) {
@@ -365,12 +384,6 @@ Drafty.prototype.restore_draft = function (genno) {
 // Genlist methods
 // 
 
-/*
-Drafty.prototype.update_genlist = function (html) {
-   $('#drafty-genlist').html(html);
-}
-*/
-
 
 // Install/refresh new genlist HTML in div
 // Optional callback function is passed latest genno as argument if any drafts exists
@@ -400,9 +413,12 @@ if (0)
    }, 'json');
 
 else
+   var args = {'op':'genlist', 'ident':this.draft_ident, 
+               'uid':this.uid,
+               'cb':this.restore_js};
 
    // This variant catches garbled JSON (error 3)
-   $.post(this.ajax_url('genlist'), {'op':'genlist', 'ident':this.draft_ident} , function(data,status) {
+   $.post(this.ajax_url('genlist'), args, function(data,status) {
       if (status != 'success') {
          that.errormsg('AJAX-1 failed ' + status);
          return;
@@ -445,7 +461,8 @@ Drafty.prototype.kill_all = function () {
 
    this.dmsg('Wipe all draft gens');
 
-   args = { 'op':  'wipe',
+   args = { 'op':    'wipe',
+            'uid':   this.uid,
             'ident': this.draft_ident };
 
    var that = this;  //this is not available in the post cb function
@@ -516,35 +533,12 @@ Drafty.prototype.toggle_devmode = function() {
 
 // ----------------------------------------------------------------------------
 
-// OLD CODE BELOW - GET RID OF IT!!!!
-
-// initialize drafts system
-//window.onload = function() {
-
-//include jquery
-//include drafty storage mods
-
-// console.log('drafts setup now');
-//}
-
+// Monitor input textarea for changes whenever it has focus
+// http://stackoverflow.com/questions/3748930/javascript-onchange-detection-for-textarea
 
 /********************** 
 
-function autosave_input(html_id, draft_ident) {
-
-// d = new Date();
-// $("#draft_status").html('Udkast #'+jobj.gen+' gemt ' + d.hhmm());
-
-   // Object init code
-
-   // Monitor input textarea for changes whenever it has focus
-   // http://stackoverflow.com/questions/3748930/javascript-onchange-detection-for-textarea
-
-   function on_focus(that) {
-
-      that.dmsg('FOCUS!');
-
-      that.setup_timer();
+todo auto save_draft() on blur?
 
       that.input_area.onblur = function() {
          window.clearInterval(that.timer);
@@ -552,14 +546,6 @@ function autosave_input(html_id, draft_ident) {
          that.input_area.onblur = null;
       };
 
-   }
-   
-   xxthat = this;
-   this.input_area.onfocus = function() {    //function needed to pass this to on_focus()
-      on_focus(xxthat);
-   };
-
-} // autosave_input constructor
 
 **********************/
 

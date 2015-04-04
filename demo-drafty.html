@@ -8,7 +8,6 @@ Demonstration HTML, CSS and JavaScript implementation for Drafty.js
 https://github.com/mlgoth/Drafty.js/wiki
 
 TODO:
- - Test with multiple Drafty objects on a single webpage
  - Validate HTML
     http://validator.w3.org/check?uri=http%3A%2F%2Fmlgoth.gyzzz.eu%2Fdrafty-js%2Fdemo-drafty.html
 
@@ -92,8 +91,7 @@ TODO:
    </style>
 
    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
-
-   <XXX using jquery .getscript below() but this works too: script src="drafty.js"></script>
+   <script src="drafty.js"></script>
 
 </head>
 
@@ -150,28 +148,35 @@ TODO:
       <div id="highlight-1" class="drafty-hls">
          Drafty.js supports multiple versions of drafts. In this demo setup, a new draft version is
          created once per minute. You can keep as many versions as needed, though this demo is limited to 25
-         to avoid spamming the demo database.</p>
-
-         Note: In the Drafty.js code draft "versions" are known as "generations".
+         to avoid spamming the demo database.
+         <br><br>
+         Note: In the Drafty.js interface draft versions are known as "generations".
       </div>
       <div id="highlight-2" class="drafty-hls">
          Drafty.js supports JavaScript callback functions while saving drafts. This can be used to display
-         a simple "Saving" text to the user. In this demo the autosave &lt;select&gt; flash green
+         a simple "Saving" text to the user. In this demo the autosave &lt;select&gt; flashes green
          when saving starts and returns to normal color when the save is complete.
       </div>
       <div id="highlight-3" class="drafty-hls">
          The demonstration page automatically saves changed input fields every few seconds by default. The user
          can freely change the save interval or disable autosaving. With autosave disabled, user must use the
-         Save-button to save drafts manually.</p>
-         
-         The web page can also save drafts by calling the <code>Drafty.save_draft()</code> method as needed.</p>
+         Save-button to save drafts manually.
+         <br><br>
+         The web page can also save drafts by calling the <code>Drafty.save_draft()</code> method as needed.
       </div>
       <div id="highlight-4" class="drafty-hls">
-         The text you input on this page is automatically saved to a MySQL database. Once a draft is saved, 
-         the text is remembered for your future visits.</p>
-
-         You can close the browser tab, reload the page, restart the browser or experience a power outage, but
-         when you come back here, your latest draft text will be restored automatically.
+         Any text that you input on this page is automatically saved to a MySQL database. Once a draft is saved, 
+         the text is remembered when you come back to this page.
+         <br><br>
+         You can close the browser tab, reload the page, restart the browser or experience a power outage, and
+         when you come back here, your last saved draft will be restored automatically.
+      </div>
+      <div id="highlight-5" class="drafty-hls">
+         If you open this webpage in a different/new browser, you will get a new demo userid and the drafts that
+         you create in the other browser will be kept seperate from the ones created in this browser.
+         <br><br>
+         The "new browser" = "new demo user" mechanism simulates different website users, like many different users
+         accessing a web forum, all saving drafts of their soon to-be online postings.
       </div>
    </td></tr>
 
@@ -192,7 +197,7 @@ TODO:
    // Constants
    var LS_AUTOSAVE_SETTING = 'drafty-autosave',
        LS_USERID = 'drafty-demo-userid',
-       DRAFTY_AUTOSAVE_DEFAULT = 60;
+       DRAFTY_AUTOSAVE_DEFAULT = 30;
 
    // Not using the ident param as we only have one Drafty object
    function drafty_restore_genno(genno, draft_ident) {
@@ -217,10 +222,12 @@ TODO:
 
    var draft_ident = "test-drafts-u" + website_userid;
 
-   $.getScript("drafty.js", function(response,status){
+// $.getScript("drafty.js", function(response,status){
 
       draft1 = new Drafty(draft_ident, '.drafty-input', 'usermsg');  //global var
-      draft1.backend_url = 'backdraft-mysql.ajax.php';
+      draft1.set_userid(website_userid);
+
+      draft1.backend_url = 'backdraft-mysql.ajax.php';      //override the default
 
       // Called when Drafty.js is saving a draft
       draft1.saving_cb = function(stage) {
@@ -305,7 +312,7 @@ TODO:
       });
 
       console.log('The drafts subsystem is up');
-   });
+// });
 
 </script>
 

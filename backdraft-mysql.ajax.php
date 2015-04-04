@@ -48,12 +48,13 @@ define('DRAFT_AUTO_CLEANUP', false);
 define('DRAFT_GEN_KEEP', 25);
 
 
-// --- Is this running from a webserver? --------------------------------------
+// --- Is this even running from a webserver? ---------------------------------
 
 if (php_sapi_name()==="cli") {
    
-   // Run simple test when script is invoked from the shell
-   $_REQUEST['ident'] = 'Unit test!';     // Common to all the _json funcs
+   // Run simple functionality tests when script is invoked from the shell
+   $_REQUEST['ident'] = 'Backend unit test!';     // Common to all the _json funcs
+   $myuserid = 42;
 
    echo "*** SAVE ***\n";
    $_REQUEST['data'] = "Sample draft data";
@@ -76,18 +77,27 @@ if (php_sapi_name()==="cli") {
    echo "\n\n*** DEATH ***\n";
    killall_json($myuserid);
 
-   die("Welcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.");
+   die("\n\nWelcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.");
 }
 
-if (empty($_POST['op']))    // require _POST when in prod to make hacking a bit more bothersome
+// Code handles both GET and POST, but we require _POST when in prod to make hacking a bit more bothersome
+if (empty($_POST['op']))
    die("Thou shall post");
 
 
-// --- Main -------------------------------------------------------------------
+// Security note:
+//
+// In a real-world scenario, you would want to verify here that
+// the userid in the POST request is the same user as is logged into the
+// website (often stored as a cookie).
+//
+// This demo code happily assumes that nobody can whack up a fake POST request
+// to mess with other peoples drafts or your database.
 
-// Set this when user logs in to the web app/site
-// Or just set it to 0 to ignore userids
-$myuserid = 42; //$_REQUEST['userid'];
+$myuserid = $_REQUEST['uid'];
+
+
+// --- Main -------------------------------------------------------------------
 
 switch ($_REQUEST['op']) {
    case 'save':
@@ -216,6 +226,7 @@ function save_draft_json($userid) {
                               ' order by generation limit '.($cnt-DRAFT_GEN_KEEP));
 
          // Also purge old drafts to keep the table tidy
+         // todo interval should be a defined param
          if (!mysqli_query($db, 'DELETE FROM '.$tablename.' WHERE save_time < DATE_SUB(NOW(), INTERVAL 6 MONTH)'))
             die("Dated kill failed: $sql");
       }
@@ -268,6 +279,7 @@ function load_draft_json($userid) {
 // 'html' vertical <ul> with list of draft generations to be put in a <div> or <td>
 // 'cnt'  Number of existing draft generations for draft_id
 // 'max'  Highest existing generation for id
+// todo: don't hardcode drafty_restore_genno calls
 function genlist_json($userid) {
 
    global $db, $tablename;
