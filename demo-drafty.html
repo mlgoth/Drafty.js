@@ -68,10 +68,8 @@ TODO:
          padding: 5px;
       }
 
-      #draft_status {      /*todo:not used apparently*/
-         font-size:small;
-         background:yellow;
-         padding-left:5em;
+      #drafty-umsg {
+         /*background: orange;*/
       }
 
       /* Highlights pane div's are all hidden initially */
@@ -129,7 +127,7 @@ TODO:
    </td>
    </tr>
    <tr><td>
-      <div id="usermsg">&nbsp;</div>
+      <div id="drafty-umsg">&nbsp;</div>
    </td></tr>
    <tr><td>
          Autosave:
@@ -147,7 +145,7 @@ TODO:
    <tr><td id="hlcell">
       <div id="highlight-1" class="drafty-hls">
          Drafty.js supports multiple versions of drafts. In this demo setup, a new draft version is
-         created once per minute. You can keep as many versions as needed, though this demo is limited to 25
+         created once per minute. You can keep as many versions as needed, though the demo is limited to 25
          to avoid spamming the demo database.
          <br><br>
          Note: In the Drafty.js interface draft versions are known as "generations".
@@ -207,7 +205,7 @@ TODO:
    // Removes all draftgens from table
    function kill_drafts() {
       draft1.kill_all();
-      draft1.usermsg('All your bases have been removed');
+      draft1.usermsg('All draft versions have been removed');
       draft1.refresh_genlist();
    }
 
@@ -224,7 +222,7 @@ TODO:
 
 // $.getScript("drafty.js", function(response,status){
 
-      draft1 = new Drafty(draft_ident, '.drafty-input', 'usermsg');  //global var
+      draft1 = new Drafty(draft_ident, '.drafty-input');  //global var
       draft1.set_userid(website_userid);
 
       draft1.backend_url = 'backdraft-mysql.ajax.php';      //override the default

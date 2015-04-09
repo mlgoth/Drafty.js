@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 //
-// drafty.js - https://github.com/mlgoth/Drafty.js/wiki
-// Draft and autosave objects for HTML input fields.
+// drafty.js - https://github.com/mlgoth/Drafty.js
+// Draft saving objects for HTML input fields.
 // jQuery required.
 // Copyright (C) Stig H. Jacobsen 2013-2015
 //
@@ -10,22 +10,13 @@
 // ----------------
 //  - All HTML id's should be named "drafty-XXX"
 //  - Implement testForChange() from old drafts.js?
-//  - Remove all old drafts.js code from bottom of this file
 //  - Test with multiple Drafty objects on a single webpage
-//
-//
-// GC release functionality missing/incomplete
-// -------------------------------------------
-//  - Nicer genlist, not so many numbers, weekdays, not so wide, '5m', '3d'
-//  - No buttons shown for ordinary staff in genlist?
-//  - Don't use .getscript(), but jsmisc::src to utilize GC minification setup
 //
 //
 // Github/Internet release TODO
 // ----------------------------
 //  - Missing:
 //     - Better multilanguage support, da-draft.js for danske tekster?
-//     - Drafty demo-site on derkins, also release downloads here (github = dev downloads)
 //     - Properly documented on the github wiki
 //  - Errorhandling:
 //     - Ajax script is missing
@@ -38,7 +29,6 @@
 //     - Use Opera to verify CSS is valid
 //     - Browser tests: FF, Chrome, Safari-Win, IE-Win, Chrome-Android, Browser (Android)
 //     - Integrate with MQT - does it play nicely?
-//     - Support for multiple Drafty objects/input fields on a single page??
 //
 //
 // Future functionality TODO
@@ -50,20 +40,15 @@
 //     - DraftyH5 or DraftyLS or DraftyH5LS (HTML5/localStorage cryptically to make 
 //       ppl wondering :-) also inherits Drafty
 //  - Warn user when leaving page (and there is unsaved text)
-//  - Autosave timer stop on blur, start on focus
+//  - Autosave timer stop on blur (after save), start on focus
 //       this.input_area = document.getElementById(this.html_id);
 //       this.input_area.onblur = myfunc;
+//     - Will this save a lot or a little cpu?
 //  - Smart unobtrusive idle autosaving
 //     - Idle autosave functionality should be separate from this and go on top of
 //       this, with the autosave-code using methods here to do the actual saving?
 //        - (user)idledetector.js - class for invoking user functions on user idling in browser
-//  - Support for saving drafts with multiple input fields (HTML form with 
-//     - Support multiple input html fields per object, passing either a string or an array:
-//         if (value instanceof Array) { alert('value is Array!'); }
-//    header and body text)
-//  - Support for saving non-text drafts, <select>, radio buttons, checkboxes, etc.
 //  - Support for UTF-8
-//  - Better support for other/different user languages
 //  - Automatic cleanup of old drafts
 //     - Object/table retain_days arg, 90 for gc comments, 5*365 for reviews
 //     - auto cleanout drafts older than this number of days (save_time)
@@ -84,9 +69,6 @@ to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
  - Der sker noget andet med teksten (katten sover på keyboardet) og bruger trykker
    Gem uden at checke teksten efter først.
 */
-//
-//
-//
 // ----------------------------------------------------------------------------
 
 
@@ -95,21 +77,20 @@ to situationer der ikke håndteres, fordi alle drafts slettes ved gem:
 
 Required arguments:
    draft_ident : uniquely identifies this particular draft - used as key in SQL db
-   html_id     : HTML id or class of input field(s) whose content to save as drafts
 
 Optional arguments:
-   msg_id   : html id of div for status messages
+   html_id     : HTML id or class of input field(s) whose content to save as drafts
 
 */
 
-var Drafty = function(draft_ident, html_id, msg_id) {
+var Drafty = function(draft_ident, html_id) {
 
    this.backend_url = 'backdraft.ajax.php';
 
    this.draft_ident = draft_ident;
-   this.html_id = html_id;
+   this.html_id = html_id ? html_id : '.drafty-inputs';
    this.last_restored = '';
-   this.msg_id = msg_id ? msg_id : null;
+   this.msg_id = null;  // defaults to drafty-umsg, but can be overridden in object
    this.uid = '0';      //just some value until object owner overrides it with set_userid()
 
    // Default messages shown to end user - these can be overriden in usercode to talk a different language
@@ -123,6 +104,7 @@ var Drafty = function(draft_ident, html_id, msg_id) {
    //todo what if the <div> isn't in the html?
    $('#drafty-box').css('visibility', 'visible');      //unhide if created hidden initially
 
+   console.log('html_id '+this.html_id);
    if (this.html_id.substr(0,1) == '.')      // A class like .drafty-inputs ?
       this.inputs_list = document.getElementsByClassName(this.html_id.substr(1));
    else
@@ -188,10 +170,7 @@ Drafty.prototype.dmsg = function(msg) {
 // Notify user of error condition
 Drafty.prototype.errormsg = function(msg) {
 
-   this.dmsg(msg);       //always log
-
-   if ( ! this.msg_id )    //output user messages at all?
-      return;
+// usermsg logs? this.dmsg(msg);       //always log
 
    this.usermsg(msg, "drafty-error"); //NLS
 
@@ -220,6 +199,69 @@ Drafty.prototype.fetch_inputs = function () {
 } // fetch_inputs()
 
 
+Drafty.prototype.really_save = function(data){
+
+   var args = { 'op':    'save',
+                'uid':   this.uid,
+                'data':  data,
+                'ident': this.draft_ident };
+
+   var that = this;     // 'this' is not available in the inline function, so save it in a var that is
+
+   $.post(this.ajax_url('save'), args, function(jobj,status) {
+
+      if (that.saving_cb)
+         that.saving_cb(3);   // Got response to POST
+
+      if (status != 'success') {
+         that.errormsg('save_draft() ajax failure ' + status);
+         return;
+      }
+
+      if ( ! jobj ) {    //todo errorcheck does not work
+         that.errormsg('JSON unparseable');
+         return;
+      }
+
+      //show error message, if any
+      if (jobj.msg)
+         this.usermsg(this.umsgs.ajax_err + ': '+jobj.msg);
+      else {
+         if (jobj.glhtml)     // if ajax 'save' returned fresh genlist html, use it
+            $('#drafty-genlist').html(jobj.glhtml);
+         else
+            that.refresh_genlist();    // Another AJAX call to refresh genlist pane
+         that.last_saved = data;
+         that.dmsg('Draft #'+jobj.gen+' saved');
+      }
+
+      if (that.saving_cb)
+         that.saving_cb(0);      //save finished
+
+   }, 'json');
+
+} // really_save()
+
+
+Drafty.prototype.restore_data = function (json_data, genno) {
+
+   this.dmsg('restoring '+genno+' => '+ json_data);
+
+   var inputs = JSON.parse(json_data);
+   for (var key in inputs) {
+      if (inputs.hasOwnProperty(key)) {
+         // console.log(key + " -> " + inputs[key]);
+         $('#' + key).val(inputs[key]);
+      }
+   }
+
+   this.last_restored = jobj.data;
+
+   this.dmsg('Draft #'+genno+' restored ');
+
+} // restore_data()
+
+
 // ----------------------------------------------------------------------------
 // Public methods
 
@@ -238,6 +280,12 @@ Drafty.prototype.usermsg = function(msg, css_class) {
       this.dmsg('uMsg: '+msg);       //always log
 
    if ( ! this.msg_id )    //output user messages at all?
+      if ( document.getElementById('drafty-umsg') )      //by default output msgs to this
+         this.msg_id = 'drafty-umsg';
+      else
+         this.msg_id = 'NONE';      //no <div> for msgs, so disable them
+
+   if ( this.msg_id == 'NONE' )    //output user messages at all?
       return;
 
    if (msg) {
@@ -295,44 +343,7 @@ Drafty.prototype.save_draft = function (autosaving) {
    if (this.saving_cb)
       this.saving_cb(2);      //Sending POST now
 
-   var args = { 'op':    'save',
-                'uid':   this.uid,
-                'data':  inputs_json,
-                'ident': this.draft_ident };
-
-   var that = this;     // 'this' is not available in the inline function, so save it in a var that is
-
-   $.post(this.ajax_url('save'), args, function(jobj,status) {
-
-      if (that.saving_cb)
-         that.saving_cb(3);   // Got response to POST
-
-      if (status != 'success') {
-         that.errormsg('save_draft() ajax failure ' + status);
-         return;
-      }
-
-      if ( ! jobj ) {    //todo errorcheck does not work
-         that.errormsg('JSON unparseable');
-         return;
-      }
-
-      //show error message, if any
-      if (jobj.msg)
-         this.usermsg(this.umsgs.ajax_err + ': '+jobj.msg);
-      else {
-         if (jobj.glhtml)     // if ajax 'save' returned fresh genlist html, use it
-            $('#drafty-genlist').html(jobj.glhtml);
-         else
-            that.refresh_genlist();    // Another AJAX call to refresh genlist pane
-         that.last_saved = inputs_json;
-         that.dmsg('Draft #'+jobj.gen+' saved');
-      }
-
-      if (that.saving_cb)
-         that.saving_cb(0);      //save finished
-
-   }, 'json');
+   this.really_save(inputs_json);
 
 } // save_draft()
 
@@ -357,22 +368,12 @@ Drafty.prototype.restore_draft = function (genno) {
    var that = this;
 
    $.post(this.ajax_url('restore'), args, function(jobj,status) {
-      //console.log('restoring '+genno+' => '+ jobj.data);
 
-      var inputs = JSON.parse(jobj.data);
-      for (var key in inputs) {
-         if (inputs.hasOwnProperty(key)) {
-            // console.log(key + " -> " + inputs[key]);
-            $('#' + key).val(inputs[key]);
-         }
-      }
+      // if (jobj.msg)
+      //    this.dmsg('ajax:'+jobj.msg);    //msg from ajax script
+      // else ...
 
-      that.last_restored = jobj.data;
-
-      if (jobj.msg)
-         that.dmsg('ajax:'+jobj.msg);    //msg from ajax script
-
-      that.dmsg('Draft #'+genno+' restored ');
+      that.restore_data(jobj.data, genno);
 
    }, 'json');
 
@@ -529,6 +530,100 @@ Drafty.prototype.toggle_devmode = function() {
    this.setup_devmode( ! this.DEV_MODE );
    this.usermsg('Devmode is now '+(this.DEV_MODE?'enabled':'disabled'));
 }
+
+
+// ----------------------------------------------------------------------------
+// DraftyLS inherited object for localStorage[] storage instead of AJAX backend
+// ----------------------------------------------------------------------------
+
+var DraftyLS;
+// DraftyLS.prototype = new Drafty();        // Here's where the inheritance occurs 
+DraftyLS.prototype = Object.create(Drafty.prototype);
+
+/*
+Cat.prototype.constructor=Cat;       // Otherwise instances of Cat would have a constructor of Mammal 
+function Cat(name){ 
+   this.name=name;
+} 
+*/
+
+// --- Methods private/specific to DraftyLS ---
+
+// Returns key for localStorage[] without genno
+DraftyLS.prototype.base_lskey = function() {
+
+   return 'Drafty.js-' + this.draft_ident + '-' + this.uid;
+
+} //mk_lskey
+
+
+// --- Methods from parent object that we override ---
+
+DraftyLS.prototype.really_save = function(data){
+
+   var genno,
+       lskey = this.base_lskey() + '-';
+
+   //todo figure out which genno to create/overwrite
+   genno = 42;
+
+   localStorage[ lskey + genno ] = data;     // JSON format
+   localStorage[ lskey + 'HW' ] = genno;     // highest genno in use
+
+   //todo the rest is somewhat a copy from Drafty.really_save()
+   this.refresh_genlist();
+
+   this.last_saved = data;
+   this.dmsg('Draft #'+genno+' saved');
+
+   if (this.saving_cb)
+      this.saving_cb(0);      //save finished
+
+} // really_save()
+
+
+DraftyLS.prototype.restore_draft = function (genno) {
+
+   var lskey = this.base_lskey() + '-';
+
+   //todo verify that key exists
+   this.restore_data( localStorage[ lskey + genno ], genno );
+
+} // restore_draft()
+
+
+DraftyLS.prototype.refresh_genlist = function (callback) {
+
+   var lskey = this.base_lskey() + '-',
+       genno = localStorage[ lskey + 'HW' ],
+       num_gens = 0,
+       maxgen = 0,
+       html = '';
+
+   if ( i )
+      while ( lskey+genno in localStorage ) {
+         num_gens++;
+         if (genno > maxgen)
+            maxgen = genno;
+
+         $html += '<a class="drafty-link" href="javascript:drafty_restore_genno('
+                  + genno + ', \'' + this.draft_ident + '\');" title="Data:'
+                  + localStorage[ lskey+genno ] + '">'
+                  + lskey+genno + '</a><br>';  //todo save_time
+
+         genno--; //previous draft, if any
+      }
+
+   if (num_gens == 0)
+      html = "No saved drafts";
+   else
+      if (callback)
+         callback(maxgen);
+
+   $('#drafty-genlist').html(html);
+   this.dmsg('Genlist refreshed, have '+num_gens+' draft generations');
+
+} // refresh_genlist()
 
 
 // ----------------------------------------------------------------------------

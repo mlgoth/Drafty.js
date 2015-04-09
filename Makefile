@@ -7,7 +7,7 @@ COMPRESSOR = yui-compressor --charset ISO-8859-15
 all:	github
 
 github:
-	-git commit *
+	-git commit
 	-git push -u origin master
 	git pull git@github.com:mlgoth/Drafty.js.git
 	git push -u origin master
