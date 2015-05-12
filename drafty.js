@@ -85,7 +85,7 @@ Optional arguments:
 
 var Drafty = function(draft_ident, html_id) {
 
-   this.backend_url = 'backdraft.ajax.php';
+   this.backend_url = 'backdraft-mysql.ajax.php';      //the default, object creator can override
 
    this.draft_ident = draft_ident;
    this.html_id = html_id ? html_id : '.drafty-inputs';
@@ -522,6 +522,9 @@ Drafty.prototype.autosave_setup = function(interval_secs) {
 
    this.autosave_secs = interval_secs;
    this.autosave_init();
+
+   //todo NLS for texts
+   this.usermsg( (interval_secs == 0) ? "Timed autosave have been disabled" : "Timed autosave have been disabled");
 
 } //autosave_setup 
 

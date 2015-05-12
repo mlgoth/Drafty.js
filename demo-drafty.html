@@ -225,8 +225,6 @@ TODO:
       draft1 = new Drafty(draft_ident, '.drafty-input');  //global var
       draft1.set_userid(website_userid);
 
-      draft1.backend_url = 'backdraft-mysql.ajax.php';      //override the default
-
       // Called when Drafty.js is saving a draft
       draft1.saving_cb = function(stage) {
          switch (stage) {
@@ -299,10 +297,6 @@ TODO:
 
          // Adjust object autosave timer
          draft1.autosave_setup(newval);
-         if (newval == 0)
-            draft1.usermsg("Timed autosave have been disabled");
-         else
-            draft1.usermsg("Saving draft every "+newval+" seconds");
       } );
 
       $('#save_button').click(function(){
