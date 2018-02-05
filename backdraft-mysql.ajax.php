@@ -39,6 +39,7 @@ if (!$db)
 
 // Newest draft generation in DB must be this number of seconds old
 // before creating a new one (INSERT) instead of UPDATE'ing latest draft.
+// todo: this should be configurable by webapp/coder
 define('DRAFT_GEN_INTERVAL_SECS', 1*60);
 
 // Set to true to clean out old/many drafts when inserting new drafts in the table
@@ -187,9 +188,9 @@ function save_draft_json($userid) {
    $data = utf8_decode($_REQUEST['data']);
 
    $where = sprintf('
-       WHERE userid=%d 
+       WHERE userid="%s"
          AND draft_ident="%s"
-      ', $userid, myres($draft_ident));
+      ', myres($userid), myres($draft_ident));
 
    // Does draft exist already?
    $row = trys('SELECT draftid,
@@ -211,8 +212,8 @@ function save_draft_json($userid) {
       // Create new draft generation as none exists or the newest gen is too old
       $sql = sprintf('INSERT INTO '.$tablename.'
                         (userid, draft_ident, create_time, save_time, generation, draft_data)
-                        VALUES (%d, "%s", NOW(), NOW(), %d, "%s")',
-                     $userid, myres($draft_ident), $row['generation'] + 1, myres($data));
+                        VALUES ("%s", "%s", NOW(), NOW(), %d, "%s")',
+                     myres($userid), myres($draft_ident), $row['generation'] + 1, myres($data));
       if (!mysqli_query($db, $sql))
          die("Mysql insert error");
       $draftid = mysqli_insert_id($db);
@@ -251,10 +252,10 @@ function load_draft_json($userid) {
 
    $sql = sprintf( 'SELECT draft_data 
                       FROM '.$tablename.'
-                     WHERE userid=%d
+                     WHERE userid="%s"
                        AND draft_ident="%s"
                        AND generation=%d', 
-                    $userid, 
+                    myres($userid), 
                     myres($_REQUEST['ident']),
                     $_REQUEST['genno']);
    $kladde = trys($sql);
@@ -288,10 +289,10 @@ function genlist_json($userid) {
    $sql = sprintf('
       SELECT *, TIME(save_time) 
         FROM %s 
-       WHERE userid=%d 
+       WHERE userid="%s"
          AND draft_ident="%s"
        ORDER BY save_time DESC
-      ', $tablename, $userid, myres($draft_ident));
+      ', $tablename, myres($userid), myres($draft_ident));
 
    $q = mysqli_query($db, $sql);
    $result = array('max' => 0, 'cnt' => mysqli_num_rows($q));
@@ -327,9 +328,9 @@ function killall_json($userid) {
 
    $sql = sprintf('
       DELETE FROM %s 
-       WHERE userid=%d 
+       WHERE userid="%s"
          AND draft_ident="%s"
-      ', $tablename, $userid, myres($draft_ident));
+      ', $tablename, myres($userid), myres($draft_ident));
 
    if (!mysqli_query($db, $sql))
       die("Delete query fails");

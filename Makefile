@@ -3,6 +3,9 @@
 COMPRESSOR = yui-compressor --charset ISO-8859-15
 #karma#COMPRESSOR = java -jar /usr/local/src/yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar --charset ISO-8859-15
 
+# To get started:
+#    git clone git@github.com:mlgoth/Drafty.js.git
+
 # Run make to push and pull from Github
 all:	github
 

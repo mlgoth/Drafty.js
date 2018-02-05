@@ -3,7 +3,7 @@
 // drafty.js - https://github.com/mlgoth/Drafty.js
 // Draft saving objects for HTML input fields.
 // jQuery required.
-// Copyright (C) Stig H. Jacobsen 2013-2015
+// Copyright (C) Stig H. Jacobsen 2013-2018
 //
 //
 // Before-prod TODO
@@ -40,6 +40,7 @@
 //     - DraftyH5 or DraftyLS or DraftyH5LS (HTML5/localStorage cryptically to make 
 //       ppl wondering :-) also inherits Drafty
 //  - Warn user when leaving page (and there is unsaved text)
+//     - Or autosave if possible
 //  - Autosave timer stop on blur (after save), start on focus
 //       this.input_area = document.getElementById(this.html_id);
 //       this.input_area.onblur = myfunc;
@@ -81,6 +82,11 @@ Required arguments:
 Optional arguments:
    html_id     : HTML id or class of input field(s) whose content to save as drafts
 
+TODO
+ -  Optional args (assoc array):
+      userid
+      backend url
+      (also html_id here, drop seperate arg for it)
 */
 
 var Drafty = function(draft_ident, html_id) {
@@ -91,7 +97,7 @@ var Drafty = function(draft_ident, html_id) {
    this.html_id = html_id ? html_id : '.drafty-inputs';
    this.last_restored = '';
    this.msg_id = null;  // defaults to drafty-umsg, but can be overridden in object
-   this.uid = '0';      //just some value until object owner overrides it with set_userid()
+   this.uid = 'anon-user';      //just some value until object owner overrides it with set_userid()
 
    // Default messages shown to end user - these can be overriden in usercode to talk a different language
    this.umsgs = { 
@@ -104,7 +110,7 @@ var Drafty = function(draft_ident, html_id) {
    //todo what if the <div> isn't in the html?
    $('#drafty-box').css('visibility', 'visible');      //unhide if created hidden initially
 
-   console.log('html_id '+this.html_id);
+   //console.log('html_id '+this.html_id);
    if (this.html_id.substr(0,1) == '.')      // A class like .drafty-inputs ?
       this.inputs_list = document.getElementsByClassName(this.html_id.substr(1));
    else
@@ -255,7 +261,7 @@ Drafty.prototype.restore_data = function (json_data, genno) {
       }
    }
 
-   this.last_restored = jobj.data;
+   this.last_restored = json_data;
 
    this.dmsg('Draft #'+genno+' restored ');
 
@@ -268,6 +274,7 @@ Drafty.prototype.restore_data = function (json_data, genno) {
 
 // Call this after object construction, if your application/page/site
 // supports multiple (web)users. 'userid' can be either a string or a number.
+// TODO This should be an optional argument at object creation.
 Drafty.prototype.set_userid = function(userid) {
    this.uid = userid;
 } // Drafty.set_userid()

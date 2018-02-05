@@ -8,12 +8,12 @@ CREATE TABLE drafty_drafts (
    -- Automatic stuff
    draftid        INT        AUTO_INCREMENT PRIMARY KEY,
    save_time      TIMESTAMP  NOT NULL                    COMMENT "When draft_data was last updated",
-   create_time    TIMESTAMP  NOT NULL                    COMMENT "Row insertion time",
+   create_time    TIMESTAMP  DEFAULT NOW() NOT NULL      COMMENT "Row insertion time",
 
    -- Identifying stuff
    draft_ident    VARCHAR(42)       NOT NULL             COMMENT "Unique identifier for draft, often the HTML id for input field",
    generation     INT(6) UNSIGNED   NOT NULL DEFAULT 1   COMMENT "A million minus one should be enough revisions for everyone",
-   userid         INT(11)           DEFAULT 0 NOT NULL   COMMENT "users.userid OWNZ this draft",
+   userid         VARCHAR(42)       NOT NULL             COMMENT "users.userid OWNZ this draft",
 
    -- Data!
    draft_data     TEXT              NOT NULL             COMMENT "Saved draft text from the HTML input field",
