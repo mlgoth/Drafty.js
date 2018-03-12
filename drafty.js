@@ -11,6 +11,12 @@
 //  - All HTML id's should be named "drafty-XXX"
 //  - Implement testForChange() from old drafts.js?
 //  - Test with multiple Drafty objects on a single webpage
+//  - Bug: Missing mysql-setup.php is not caught, from apaches error.log:
+//      [:error] [pid 5564] [client 192.168.1.99:49559] PHP Fatal error:
+//      require_once(): Failed opening required 'mysql-setup.php'
+//      (include_path='.:/usr/share/php') in
+//      /home/shj/mqt1/Drafty.js/backdraft-mysql.ajax.php on line 36, referer:
+//      http://hobbes.gyzzz.eu/mqt1/mqt.html
 //
 //
 // Github/Internet release TODO
@@ -546,7 +552,7 @@ Drafty.prototype.toggle_devmode = function() {
 // DraftyLS inherited object for localStorage[] storage instead of AJAX backend
 // ----------------------------------------------------------------------------
 
-var DraftyLS;
+var DraftyLS = {};
 // DraftyLS.prototype = new Drafty();        // Here's where the inheritance occurs 
 DraftyLS.prototype = Object.create(Drafty.prototype);
 
