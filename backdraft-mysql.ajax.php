@@ -7,7 +7,7 @@
 //
 // TODO
 // ----
-//  - Support UTF-8. It may be supported already, not tetsed.
+//  - Support UTF-8. It may be supported already, not tested.
 //
 //
 // POST arguments
@@ -78,7 +78,7 @@ if (php_sapi_name()==="cli") {
    echo "\n\n*** DEATH ***\n";
    killall_json($myuserid);
 
-   die("\n\nWelcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.");
+   die("\n\nWelcome to the wonderfull world of HTML5, AJAX and JSON!\nNow go test this code on a webpage.\n\n");
 }
 
 // Code handles both GET and POST, but we require _POST when in prod to make hacking a bit more bothersome
@@ -199,7 +199,7 @@ function save_draft_json($userid) {
                         FROM '.$tablename.' '.$where.'
                        ORDER BY generation DESC LIMIT 1');
 
-   if ($row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
+   if (!empty($row) && $row['draftid'] && $row['age_in_secs'] < DRAFT_GEN_INTERVAL_SECS) {
       $draftid = $row['draftid'];
       $sql = sprintf('UPDATE '.$tablename.'
                          SET save_time = NOW(),
@@ -209,6 +209,8 @@ function save_draft_json($userid) {
       if (!mysqli_query($db, $sql))
          die("Mysql update error: $sql");
    } else {
+      if (empty($row))
+         $row['generation'] = 1;
       // Create new draft generation as none exists or the newest gen is too old
       $sql = sprintf('INSERT INTO '.$tablename.'
                         (userid, draft_ident, create_time, save_time, generation, draft_data)
